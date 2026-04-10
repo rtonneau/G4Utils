@@ -1,4 +1,3 @@
-from dataclasses import dataclass, field
 from pathlib import Path
 
 import h5py
@@ -23,7 +22,6 @@ from g4utils.Vox.vox_geometry import VoxGeometry
 # ═════════════════════════════════════════════════════════════════════════════
 
 
-@dataclass
 class G4VoxFile4D:
     """
     Lightweight 4D HDF5 voxel container with lazy per-subrun loading.
@@ -43,26 +41,21 @@ class G4VoxFile4D:
     sim.dump_selection_to_vti_timeseries("selected_subruns.pvd")
     """
 
-    path: Path
-    geometry: VoxGeometry | None = field(init=False, default=None)
-    run_log: pd.DataFrame | None = field(init=False, default=None)
-    data: dict[str, np.ndarray] = field(
-        init=False, default_factory=dict
-    )  # name → currently loaded (nZ, nY, nX) for active subrun
-    root_attrs: dict = field(init=False, default_factory=dict)
-    dataset_names: list[str] = field(init=False, default_factory=list)
-    selected_quantities: list[str] = field(init=False, default_factory=list)
-    selected_subrun_ids: list[int] = field(init=False, default_factory=list)
-    n_subruns_hint: int | None = field(init=False, default=None)
-    current_subrun_id: int | None = field(init=False, default=None)
-    _iter_subrun_ids: list[int] = field(init=False, default_factory=list)
-    _iter_pos: int = field(init=False, default=0)
-    _iter_source_data: dict[str, np.ndarray] | None = field(
-        init=False, default=None
-    )
+    def __init__(self, path: str | Path) -> None:
+        self.path = Path(path)
+        self.geometry: VoxGeometry | None = None
+        self.run_log: pd.DataFrame | None = None
+        self.data: dict[str, np.ndarray] = {}
+        self.root_attrs: dict = {}
+        self.dataset_names: list[str] = []
+        self.selected_quantities: list[str] = []
+        self.selected_subrun_ids: list[int] = []
+        self.n_subruns_hint: int | None = None
+        self.current_subrun_id: int | None = None
+        self._iter_subrun_ids: list[int] = []
+        self._iter_pos: int = 0
+        self._iter_source_data: dict[str, np.ndarray] | None = None
 
-    def __post_init__(self) -> None:
-        self.path = Path(self.path)
         if not self.path.exists():
             raise FileNotFoundError(self.path)
 
