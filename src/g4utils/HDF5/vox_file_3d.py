@@ -1,27 +1,28 @@
-import typing as tp
 from dataclasses import dataclass, field
 from pathlib import Path
 
 import numpy as np
+import numpy.typing as npt
 import pandas as pd
 
 from g4utils.HDF5.vox_file_4d import G4VoxFile4D
+from g4utils.HDF5.vti_export import select_quantities, write_vti
 from g4utils.Vox.vox_geometry import VoxGeometry
 
-# ══════════════════════════════════════════════════════════════════════════════
+# ═════════════════════════════════════════════════════════════════════════════
 #  3D layout containers
 #
 #  /metadata
 #  /subrun_0000/Dose   (nZ, nY, nX)
 #  /subrun_0001/Dose   (nZ, nY, nX)
 #  /run_log
-# ══════════════════════════════════════════════════════════════════════════════
+# ═════════════════════════════════════════════════════════════════════════════
 
 
 @dataclass
 class SubRun:
     subrun_id: int
-    quantities: tp.Dict[str, np.ndarray]  # name → (nZ,nY,nX) array
+    quantities: dict[str, np.ndarray]  # name → (nZ,nY,nX) array
 
     def __repr__(self) -> str:
         return f"SubRun(id={self.subrun_id}  qty={list(self.quantities)})"
@@ -31,12 +32,12 @@ class SubRun:
 class G4VoxFile3D:
     path: Path
     geometry: VoxGeometry
-    run_log: tp.Optional[pd.DataFrame]
-    subruns: tp.Dict[int, SubRun]
-    root_attrs: tp.Dict = field(default_factory=dict)
+    run_log: pd.DataFrame | None
+    subruns: dict[int, SubRun]
+    root_attrs: dict = field(default_factory=dict)
 
     @property
-    def subrun_ids(self) -> tp.List[int]:
+    def subrun_ids(self) -> list[int]:
         return sorted(self.subruns)
 
     @property
@@ -44,7 +45,7 @@ class G4VoxFile3D:
         return len(self.subruns)
 
     @property
-    def quantity_names(self) -> tp.List[str]:
+    def quantity_names(self) -> list[str]:
         first = next(iter(self.subruns.values()))
         return list(first.quantities)
 
@@ -63,8 +64,8 @@ class G4VoxFile3D:
 
     def to_4d(
         self,
-        quantities: tp.Optional[tp.List[str]] = None,
-        subrun_ids: tp.Optional[tp.List[int]] = None,
+        quantities: list[str] | None = None,
+        subrun_ids: list[int] | None = None,
     ) -> "G4VoxFile4D":
         """
         Convert this 3D file into a G4VoxFile4D container.
@@ -94,6 +95,31 @@ class G4VoxFile3D:
             run_log=self.run_log,
             data=data,
             root_attrs=self.root_attrs,
+        )
+
+    def to_vti(
+        self,
+        filepath: str | Path,
+        subrun_id: int | None = None,
+        quantities: list[str] | None = None,
+        dtype: npt.DTypeLike = np.float32,
+    ) -> Path:
+        """
+        Export this container to a ParaView-compatible .vti file.
+
+        If subrun_id is provided, that single subrun is exported.
+        Otherwise, each quantity is summed over all available subruns.
+        """
+        qtys = select_quantities(self.quantity_names, quantities)
+        if subrun_id is None:
+            arrays = {q: self.sum(q) for q in qtys}
+        else:
+            arrays = {q: self.get(q, subrun_id) for q in qtys}
+        return write_vti(
+            filepath=filepath,
+            geometry=self.geometry,
+            cell_arrays=arrays,
+            dtype=dtype,
         )
 
     def __repr__(self) -> str:

@@ -1,6 +1,7 @@
 from .shared import read_g4vox_hdf5_3d, read_g4vox_hdf5_4d
 from .vox_file_3d import G4VoxFile3D, SubRun
 from .vox_file_4d import G4VoxFile4D
+from .vti_export import write_vti
 
 __all__ = [
     "G4VoxFile3D",
@@ -8,4 +9,5 @@ __all__ = [
     "read_g4vox_hdf5_3d",
     "read_g4vox_hdf5_4d",
     "SubRun",
+    "write_vti",
 ]
