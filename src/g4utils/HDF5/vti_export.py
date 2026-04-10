@@ -149,6 +149,36 @@ def write_vti(
     return out
 
 
+def write_pvd_collection(
+    filepath: str | Path,
+    datasets: list[tuple[float, str]],
+) -> Path:
+    """Write a ParaView .pvd collection referencing timestep files."""
+    out = Path(filepath)
+    out.parent.mkdir(parents=True, exist_ok=True)
+
+    entries = [
+        (
+            f'    <DataSet timestep="{time}" group="" part="0" '
+            f'file="{filename}"/>'
+        )
+        for time, filename in datasets
+    ]
+
+    xml = (
+        '<?xml version="1.0"?>\n'
+        '<VTKFile type="Collection" version="0.1" byte_order="LittleEndian">\n'
+        "  <Collection>\n"
+        + "\n".join(entries)
+        + "\n"
+        + "  </Collection>\n"
+        + "</VTKFile>\n"
+    )
+
+    out.write_text(xml, encoding="utf-8")
+    return out
+
+
 def select_quantities(
     available: tp.Iterable[str],
     quantities: tp.Iterable[str] | None,

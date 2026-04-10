@@ -89,13 +89,14 @@ class G4VoxFile3D:
             for qty in qtys
         }
 
-        return G4VoxFile4D(
-            path=self.path,
-            geometry=self.geometry,
-            run_log=self.run_log,
-            data=data,
-            root_attrs=self.root_attrs,
-        )
+        out = G4VoxFile4D(path=self.path)
+        out.geometry = self.geometry
+        out.run_log = self.run_log
+        out.data = data
+        out.root_attrs = self.root_attrs
+        out.dataset_names = list(data)
+        out.n_subruns_hint = next(iter(data.values())).shape[0] if data else 0
+        return out
 
     def to_vti(
         self,

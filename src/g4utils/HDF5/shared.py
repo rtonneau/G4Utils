@@ -1,4 +1,3 @@
-import typing as tp
 from pathlib import Path
 
 import h5py
@@ -6,7 +5,6 @@ import numpy as np
 import pandas as pd
 
 from g4utils.HDF5.vox_file_3d import G4VoxFile3D, SubRun
-from g4utils.HDF5.vox_file_4d import G4VoxFile4D
 from g4utils.Vox.vox_geometry import VoxGeometry
 
 # ═════════════════════════════════════════════════════════════════════════════
@@ -43,7 +41,7 @@ def _read_geometry(f: h5py.File) -> VoxGeometry:
     return VoxGeometry(dims_xyz=np.array([nx, ny, nz], dtype=float))
 
 
-def _read_run_log(f: h5py.File) -> tp.Optional[pd.DataFrame]:
+def _read_run_log(f: h5py.File) -> pd.DataFrame | None:
     if "run_log" not in f:
         return None
     raw = f["run_log"][()]  # type: ignore
@@ -54,7 +52,7 @@ def _read_run_log(f: h5py.File) -> tp.Optional[pd.DataFrame]:
 
 
 def _qty_whitelist(
-    available: list[str], requested: tp.Optional[list[str]]
+    available: list[str], requested: list[str] | None
 ) -> list[str]:
     if requested is None:
         return available
@@ -71,8 +69,8 @@ def _qty_whitelist(
 
 def read_g4vox_hdf5_3d(
     filepath: str | Path,
-    quantities: tp.Optional[list[str]] = None,
-    subrun_ids: tp.Optional[list[int]] = None,
+    quantities: list[str] | None = None,
+    subrun_ids: list[int] | None = None,
 ) -> G4VoxFile3D:
     """
     Read a G4Vox HDF5 file written in **Snapshot3D** mode.
@@ -92,10 +90,11 @@ def read_g4vox_hdf5_3d(
         root_attrs = dict(f.attrs)
         run_log = _read_run_log(f)
 
-        # ── discover subrun groups ────────────────────────────────────────────
+        # ── discover subrun groups ───────────────────────────────────────────
         all_keys = sorted(
             k
-            for k in f.keys()
+            for k in f
+            if isinstance(k, str)
             if k.startswith("subrun_") and isinstance(f[k], h5py.Group)
         )
         if subrun_ids is not None:
@@ -117,60 +116,5 @@ def read_g4vox_hdf5_3d(
         geometry=geometry,
         run_log=run_log,
         subruns=subruns,
-        root_attrs=root_attrs,
-    )
-
-
-def read_g4vox_hdf5_4d(
-    filepath: str | Path,
-    quantities: tp.Optional[list[str]] = None,
-    subrun_ids: tp.Optional[list[int]] = None,
-) -> G4VoxFile4D:
-    """
-    Read a G4Vox HDF5 file written in **Extendable4D** mode.
-
-    Layout expected
-    ───────────────
-    /metadata          group  attrs: dims_xyz, spacing_mm, origin_mm
-    /<qty>             dataset  shape (N_subruns, nZ, nY, nX)
-    /run_log           dataset  shape (N, 4)
-
-    Parameters
-    ----------
-    subrun_ids : if given, only those indices along axis-0 are loaded
-    """
-    filepath = Path(filepath)
-    if not filepath.exists():
-        raise FileNotFoundError(filepath)
-
-    with h5py.File(filepath, "r") as f:
-        geometry = _read_geometry(f)
-        root_attrs = dict(f.attrs)
-        run_log = _read_run_log(f)
-
-        # ── discover quantity datasets (rank-4 only) ──────────────────────────
-        avail = [
-            k
-            for k in f.keys()
-            if k not in _SKIP_KEYS
-            and isinstance(f[k], h5py.Dataset)
-            and f[k].ndim == 4  # type: ignore
-        ]
-        load = _qty_whitelist(avail, quantities)
-
-        # ── load, optionally slicing axis-0 ──────────────────────────────────
-        data: dict[str, np.ndarray] = {}
-        for qty in load:
-            ds = f[qty]
-            if subrun_ids is None:
-                data[qty] = ds[()]  # type: ignore
-            else:
-                data[qty] = ds[subrun_ids, ...]  # type: ignore
-
-    return G4VoxFile4D(
-        path=filepath,
-        geometry=geometry,
-        run_log=run_log,
-        data=data,
         root_attrs=root_attrs,
     )
