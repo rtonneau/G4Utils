@@ -38,6 +38,46 @@ def _format_data_array(name: str, arr: np.ndarray, vtk_type: str) -> str:
     )
 
 
+def _cast_for_vti(
+    arr: np.ndarray,
+    target_dtype: np.dtype,
+    name: str,
+) -> np.ndarray:
+    """Cast with explicit overflow checks to avoid RuntimeWarning spam."""
+    a = np.asarray(arr)
+
+    if np.issubdtype(target_dtype, np.floating):
+        finfo = np.finfo(target_dtype)
+        finite = (
+            a[np.isfinite(a)] if np.issubdtype(a.dtype, np.floating) else a
+        )
+        if finite.size and (
+            finite.min() < finfo.min or finite.max() > finfo.max
+        ):
+            raise OverflowError(
+                f"Array '{name}' cannot be represented as {target_dtype}. "
+                "Use a wider dtype such as np.float64."
+            )
+
+    elif np.issubdtype(target_dtype, np.integer):
+        iinfo = np.iinfo(target_dtype)
+        if np.issubdtype(a.dtype, np.floating):
+            finite = a[np.isfinite(a)]
+            if finite.size and (
+                finite.min() < iinfo.min or finite.max() > iinfo.max
+            ):
+                raise OverflowError(
+                    f"Array '{name}' cannot be represented as {target_dtype}."
+                )
+        else:
+            if a.size and (a.min() < iinfo.min or a.max() > iinfo.max):
+                raise OverflowError(
+                    f"Array '{name}' cannot be represented as {target_dtype}."
+                )
+
+    return a.astype(target_dtype, copy=False)
+
+
 def write_vti(
     filepath: str | Path,
     geometry: VoxGeometry,
@@ -77,7 +117,7 @@ def write_vti(
             active_scalar = name
         arrays_xml.append(
             _format_data_array(
-                name, a.astype(target_dtype, copy=False), vtk_type
+                name, _cast_for_vti(a, target_dtype, name), vtk_type
             )
         )
 
