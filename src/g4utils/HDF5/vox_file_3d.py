@@ -5,8 +5,8 @@ from pathlib import Path
 import numpy as np
 import pandas as pd
 
-from g4utils.HDF5.VoxFile4D import G4VoxFile4D
-from g4utils.Vox.voxgeometry import VoxGeometry
+from g4utils.HDF5.vox_file_4d import G4VoxFile4D
+from g4utils.Vox.vox_geometry import VoxGeometry
 
 # ══════════════════════════════════════════════════════════════════════════════
 #  3D layout containers
@@ -82,7 +82,9 @@ class G4VoxFile3D:
         qtys = quantities if quantities is not None else self.quantity_names
 
         data = {
-            qty: np.stack([self.subruns[i].quantities[qty] for i in ids], axis=0)
+            qty: np.stack(
+                [self.subruns[i].quantities[qty] for i in ids], axis=0
+            )
             for qty in qtys
         }
 

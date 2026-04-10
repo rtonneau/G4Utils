@@ -5,7 +5,7 @@ from pathlib import Path
 import numpy as np
 import pandas as pd
 
-from g4utils.Vox.voxgeometry import VoxGeometry
+from g4utils.Vox.vox_geometry import VoxGeometry
 
 # ══════════════════════════════════════════════════════════════════════════════
 #  4D layout containers
@@ -22,15 +22,15 @@ class G4VoxFile4D:
     path: Path
     geometry: VoxGeometry
     run_log: tp.Optional[pd.DataFrame]
-    data: tp.Dict[str, np.ndarray]  # name → (N, nZ, nY, nX) array
-    root_attrs: tp.Dict = field(default_factory=dict)
+    data: dict[str, np.ndarray]  # name → (N, nZ, nY, nX) array
+    root_attrs: dict = field(default_factory=dict)
 
     @property
     def n_subruns(self) -> int:
         return next(iter(self.data.values())).shape[0]
 
     @property
-    def quantity_names(self) -> tp.List[str]:
+    def quantity_names(self) -> list[str]:
         return list(self.data)
 
     def total_primaries(self) -> int:

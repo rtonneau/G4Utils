@@ -1,1 +1,3 @@
-from .voxgeometry import VoxGeometry
+from .vox_geometry import VoxGeometry
+
+__all__ = ["VoxGeometry"]

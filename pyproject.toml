@@ -56,3 +56,10 @@ source = ["src"]
 [tool.ruff]
 line-length = 100
 src = ["src"]
+
+[tool.mypy]
+python_version = "3.10"
+
+[[tool.mypy.overrides]]
+module = ["h5py", "h5py.*"]
+ignore_missing_imports = true
