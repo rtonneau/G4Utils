@@ -20,6 +20,33 @@ from g4utils.Vox.vox_geometry import VoxGeometry
 
 @dataclass
 class BackendDiscovery:
+    """
+    Metadata bundle returned by a layout backend discovery pass.
+
+    Parameters
+    ----------
+    geometry : VoxGeometry
+        Geometry information inferred from ``/metadata`` or from dataset
+        dimensions when metadata is absent.
+    run_log : pandas.DataFrame or None
+        Run-level table containing per-subrun information such as number of
+        primaries and RNG seeds.
+    root_attrs : dict
+        Top-level HDF5 attributes copied from the file root.
+    dataset_names : list of str
+        Available quantity names (for example ``Dose`` or ``Edep``).
+    available_subrun_ids : list of int
+        Logical subrun identifiers available through the selected layout.
+    n_subruns_hint : int
+        Fast-access subrun count used by façade properties.
+
+    Notes
+    -----
+    This object is intentionally lightweight and immutable-in-practice: it is
+    created by the backend and consumed once by the façade to initialize its
+    public state.
+    """
+
     geometry: VoxGeometry
     run_log: pd.DataFrame | None
     root_attrs: dict
@@ -29,6 +56,21 @@ class BackendDiscovery:
 
 
 class HDF5LayoutBackend(ABC):
+    """
+    Storage adapter contract for one concrete HDF5 layout.
+
+    Parameters
+    ----------
+    path : str or pathlib.Path
+        Path to the HDF5 file to serve.
+
+    Notes
+    -----
+    Backends isolate all layout-specific concerns. The façade does not know
+    whether data is stored as ``/subrun_XXXX/<qty>`` groups or as
+    ``/<qty>[subrun, z, y, x]`` datasets; it only calls this interface.
+    """
+
     def __init__(self, path: str | Path) -> None:
         self.path = Path(path)
 
@@ -59,6 +101,18 @@ class HDF5LayoutBackend(ABC):
 
 
 class Snapshot3DBackend(HDF5LayoutBackend):
+    """
+    Backend for Snapshot3D files using one group per subrun.
+
+    Notes
+    -----
+    Expected layout:
+
+    - ``/metadata``
+    - ``/run_log``
+    - ``/subrun_0000/<quantity>`` with 3D arrays of shape ``(nZ, nY, nX)``
+    """
+
     def discover(self) -> BackendDiscovery:
         with h5py.File(self.path, "r") as f:
             geometry = _read_geometry(f)
@@ -109,7 +163,8 @@ class Snapshot3DBackend(HDF5LayoutBackend):
             for quantity in quantities:
                 if quantity not in group:
                     raise KeyError(
-                        f"Quantity '{quantity}' not found in subrun {subrun_id}"
+                        "Quantity "
+                        f"'{quantity}' not found in subrun {subrun_id}"
                     )
                 ds_obj = group[quantity]
                 if not isinstance(ds_obj, h5py.Dataset):
@@ -119,6 +174,20 @@ class Snapshot3DBackend(HDF5LayoutBackend):
 
 
 class Dataset4DBackend(HDF5LayoutBackend):
+    """
+    Backend for 4D dataset files using one dataset per quantity.
+
+    Notes
+    -----
+    Expected layout:
+
+    - ``/metadata``
+    - ``/run_log``
+    - ``/Dose`` (or other quantities) with shape ``(N, nZ, nY, nX)``
+
+    where ``N`` is the subrun axis.
+    """
+
     def discover(self) -> BackendDiscovery:
         with h5py.File(self.path, "r") as f:
             geometry = _read_geometry(f)
@@ -167,6 +236,72 @@ class Dataset4DBackend(HDF5LayoutBackend):
 
 
 class G4VoxFileBase:
+    """
+    Common lazy façade shared by all voxel-file front-end classes.
+
+    This class centralizes user-facing behavior (selection, iteration,
+    extraction, and export) while delegating file-layout details to a backend
+    object implementing :class:`HDF5LayoutBackend`.
+
+    Parameters
+    ----------
+    path : str or pathlib.Path
+        Path to the source HDF5 file.
+    backend : HDF5LayoutBackend
+        Concrete storage adapter for the file layout.
+    label : str
+        Display label used in ``__repr__``.
+
+    Attributes
+    ----------
+    path : pathlib.Path
+        Source file location.
+    geometry : VoxGeometry or None
+        Geometry read at construction from backend discovery.
+    run_log : pandas.DataFrame or None
+        Optional run log table.
+    data : dict[str, numpy.ndarray]
+        Currently materialized subrun data for active iteration step.
+    dataset_names : list[str]
+        Available quantity names discovered from file.
+    available_subrun_ids : list[int]
+        Subrun IDs discovered from layout.
+    selected_quantities : list[str]
+        Active quantity filter.
+    selected_subrun_ids : list[int]
+        Active subrun filter. Empty means "all available".
+
+    Notes
+    -----
+    High-level flow:
+
+    1. Construction calls backend ``discover()`` once (metadata only).
+    2. User sets filters with ``select_quantity`` and ``select_subrun``.
+    3. Iteration lazily pulls one subrun at a time via backend ``load_subrun``.
+    4. Export helpers consume the same selection state.
+
+    Simple interaction diagram::
+
+        user API (G4VoxFile3D / G4VoxFile4D)
+                     |
+                     v
+               G4VoxFileBase
+            (selection + iteration)
+                     |
+                     v
+             HDF5LayoutBackend
+          /                      \
+    Snapshot3DBackend      Dataset4DBackend
+
+    This design keeps API behavior consistent across formats while limiting
+    future changes to small backend classes when a new storage layout appears.
+
+    Examples
+    --------
+    ``G4VoxFileBase`` is intended to be subclassed, not instantiated directly.
+    See concrete wrappers ``G4VoxFile3D`` and ``G4VoxFile4D`` for user code.
+    """
+
     def __init__(
         self,
         path: str | Path,
