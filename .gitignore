@@ -79,6 +79,5 @@ cython_debug/
 
 # PyPI configuration file
 .pypirc
-
-.scratch/
 .work/
+.scratch/

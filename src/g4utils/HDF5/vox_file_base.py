@@ -1,21 +1,28 @@
 from __future__ import annotations
 
+import warnings
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
 from pathlib import Path
+from typing import Literal
 
 import h5py
 import numpy as np
 import numpy.typing as npt
 import pandas as pd
 
-from g4utils.HDF5.shared import _read_geometry, _read_run_log
-from g4utils.HDF5.vti_export import (
-    select_quantities,
-    write_pvd_collection,
-    write_vti,
-)
+from g4utils.HDF5.shared import _read_geometry, _read_run_log, select_quantities
+from g4utils.HDF5.vti_export import write_pvd_collection, write_vti
 from g4utils.Vox.vox_geometry import VoxGeometry
+
+
+def _accumulator_dtype(dtype: np.dtype) -> np.dtype:
+    """Return the dtype used to accumulate sums of arrays of ``dtype``."""
+    if np.issubdtype(dtype, np.floating):
+        return np.dtype(np.float64)
+    if np.issubdtype(dtype, np.integer) or np.issubdtype(dtype, np.bool_):
+        return np.dtype(np.int64)
+    return np.dtype(dtype)
 
 
 @dataclass
@@ -87,12 +94,18 @@ class HDF5LayoutBackend(ABC):
     def sum_subruns(
         self, subrun_ids: list[int], quantities: list[str]
     ) -> dict[str, np.ndarray]:
+        """
+        Sum the requested quantities over ``subrun_ids``.
+
+        Floating input is accumulated in float64, integer or bool input in
+        int64, and any other dtype in its own dtype.
+        """
         summed: dict[str, np.ndarray] = {}
         for sid in subrun_ids:
             arrays = self.load_subrun(sid, quantities)
             if not summed:
                 summed = {
-                    name: np.zeros_like(array)
+                    name: np.zeros(array.shape, dtype=_accumulator_dtype(array.dtype))
                     for name, array in arrays.items()
                 }
             for name, array in arrays.items():
@@ -177,6 +190,11 @@ class Dataset4DBackend(HDF5LayoutBackend):
     """
     Backend for 4D dataset files using one dataset per quantity.
 
+    Parameters
+    ----------
+    path : str or pathlib.Path
+        Path to the HDF5 file to serve.
+
     Notes
     -----
     Expected layout:
@@ -185,8 +203,16 @@ class Dataset4DBackend(HDF5LayoutBackend):
     - ``/run_log``
     - ``/Dose`` (or other quantities) with shape ``(N, nZ, nY, nX)``
 
-    where ``N`` is the subrun axis.
+    where ``N`` is the slice axis. Row ``i`` of ``/run_log`` describes slice
+    ``i``, so subrun IDs are read from ``run_log["subrun_id"]``. When the run
+    log is missing, has a row count different from ``N``, or holds duplicate
+    IDs, a ``UserWarning`` is emitted and slice indices ``0..N-1`` are used as
+    subrun IDs instead.
     """
+
+    def __init__(self, path: str | Path) -> None:
+        super().__init__(path)
+        self._slice_index: dict[int, int] = {}
 
     def discover(self) -> BackendDiscovery:
         with h5py.File(self.path, "r") as f:
@@ -202,27 +228,80 @@ class Dataset4DBackend(HDF5LayoutBackend):
                 if isinstance(obj, h5py.Dataset) and obj.ndim == 4:
                     dataset_names.append(key)
 
-            n_subruns_hint = 0
+            n_slices = 0
             if dataset_names:
                 ds_obj = f[dataset_names[0]]
                 if not isinstance(ds_obj, h5py.Dataset):
                     raise TypeError(
                         f"Expected dataset for '{dataset_names[0]}'"
                     )
-                n_subruns_hint = int(ds_obj.shape[0])
+                n_slices = int(ds_obj.shape[0])
+
+        subrun_ids = self._subrun_ids_from_run_log(run_log, n_slices)
+        self._slice_index = {sid: i for i, sid in enumerate(subrun_ids)}
 
         return BackendDiscovery(
             geometry=geometry,
             run_log=run_log,
             root_attrs=root_attrs,
             dataset_names=dataset_names,
-            available_subrun_ids=list(range(n_subruns_hint)),
-            n_subruns_hint=n_subruns_hint,
+            available_subrun_ids=subrun_ids,
+            n_subruns_hint=n_slices,
         )
+
+    def _subrun_ids_from_run_log(
+        self, run_log: pd.DataFrame | None, n_slices: int
+    ) -> list[int]:
+        """
+        Map slices to subrun IDs, falling back to slice indices.
+
+        Parameters
+        ----------
+        run_log : pandas.DataFrame or None
+            Parsed ``/run_log`` table.
+        n_slices : int
+            Length of the slice axis of the quantity datasets.
+
+        Returns
+        -------
+        list of int
+            Subrun ID of each slice, in slice order.
+        """
+        fallback = list(range(n_slices))
+        if n_slices == 0:
+            return fallback
+
+        reason: str | None = None
+        if run_log is None:
+            reason = "run_log missing"
+        elif "subrun_id" not in run_log.columns:
+            reason = "run_log missing 'subrun_id' column"
+        elif len(run_log) != n_slices:
+            reason = (
+                f"run_log has {len(run_log)} rows but datasets have "
+                f"{n_slices} slices"
+            )
+        else:
+            ids = [int(sid) for sid in run_log["subrun_id"]]
+            if len(set(ids)) != len(ids):
+                reason = "duplicate subrun_id in run_log"
+            else:
+                return ids
+
+        warnings.warn(
+            f"{self.path.name}: {reason}; using slice indices "
+            f"0..{n_slices - 1} as subrun IDs.",
+            UserWarning,
+            stacklevel=2,
+        )
+        return fallback
 
     def load_subrun(
         self, subrun_id: int, quantities: list[str]
     ) -> dict[str, np.ndarray]:
+        if subrun_id not in self._slice_index:
+            raise KeyError(f"Subrun '{subrun_id}' not found")
+        slice_index = self._slice_index[subrun_id]
         with h5py.File(self.path, "r") as f:
             loaded: dict[str, np.ndarray] = {}
             for quantity in quantities:
@@ -231,7 +310,7 @@ class Dataset4DBackend(HDF5LayoutBackend):
                 ds_obj = f[quantity]
                 if not isinstance(ds_obj, h5py.Dataset):
                     raise TypeError(f"Expected dataset for '{quantity}'")
-                loaded[quantity] = np.asarray(ds_obj[subrun_id, ...])
+                loaded[quantity] = np.asarray(ds_obj[slice_index, ...])
             return loaded
 
 
@@ -433,9 +512,9 @@ class G4VoxFileBase:
         return sid
 
     def total_primaries(self) -> int:
-        if self.run_log is None or "nPrimaries" not in self.run_log.columns:
+        if self.run_log is None or "primaries" not in self.run_log.columns:
             return 0
-        return int(self.run_log["nPrimaries"].sum())
+        return int(self.run_log["primaries"].sum())
 
     def get(self, qty: str, subrun_id: int) -> np.ndarray:
         if self.current_subrun_id == subrun_id and qty in self.data:
@@ -456,6 +535,9 @@ class G4VoxFileBase:
         self,
         filepath: str | Path,
         dtype: npt.DTypeLike = np.float32,
+        *,
+        encoding: Literal["binary", "ascii"] = "binary",
+        compress: bool = False,
     ) -> Path:
         qtys = (
             self.selected_quantities
@@ -475,12 +557,17 @@ class G4VoxFileBase:
             geometry=self._require_geometry(),
             cell_arrays=arrays,
             dtype=dtype,
+            encoding=encoding,
+            compress=compress,
         )
 
     def dump_selection_to_vti_timeseries(
         self,
         filepath: str | Path,
         dtype: npt.DTypeLike = np.float32,
+        *,
+        encoding: Literal["binary", "ascii"] = "binary",
+        compress: bool = False,
     ) -> Path:
         pvd_path = Path(filepath)
         if pvd_path.suffix.lower() != ".pvd":
@@ -509,6 +596,8 @@ class G4VoxFileBase:
                 geometry=self._require_geometry(),
                 cell_arrays=arrays,
                 dtype=dtype,
+                encoding=encoding,
+                compress=compress,
             )
             datasets.append((float(sid), frame_name))
 
@@ -518,16 +607,22 @@ class G4VoxFileBase:
         self,
         filepath: str | Path,
         dtype: npt.DTypeLike = np.float32,
+        *,
+        encoding: Literal["binary", "ascii"] = "binary",
+        compress: bool = False,
     ) -> Path:
         if not self.data:
             raise ValueError(
-                "No subrun data loaded. Iterate once or call next(sim) first."
+                "No subrun data loaded. Use it inside `for sid in sim:` "
+                "or call next(iter(sim)) first."
             )
         return write_vti(
             filepath=filepath,
             geometry=self._require_geometry(),
             cell_arrays=self.data,
             dtype=dtype,
+            encoding=encoding,
+            compress=compress,
         )
 
     def _require_geometry(self) -> VoxGeometry:
