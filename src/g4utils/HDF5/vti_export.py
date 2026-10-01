@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import typing as tp
 from pathlib import Path
 
 import numpy as np
@@ -177,17 +176,3 @@ def write_pvd_collection(
 
     out.write_text(xml, encoding="utf-8")
     return out
-
-
-def select_quantities(
-    available: tp.Iterable[str],
-    quantities: tp.Iterable[str] | None,
-) -> list[str]:
-    avail = list(available)
-    if quantities is None:
-        return avail
-    wanted = list(quantities)
-    missing = set(wanted) - set(avail)
-    if missing:
-        raise KeyError(f"Quantities not found: {sorted(missing)}")
-    return [q for q in avail if q in wanted]

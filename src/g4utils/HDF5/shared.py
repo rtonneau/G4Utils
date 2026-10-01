@@ -1,17 +1,13 @@
 from __future__ import annotations
 
+import typing as tp
 import warnings
-from pathlib import Path
-from typing import TYPE_CHECKING
 
 import h5py
 import numpy as np
 import pandas as pd
 
 from g4utils.Vox.vox_geometry import VoxGeometry
-
-if TYPE_CHECKING:
-    from g4utils.HDF5.vox_file_3d import G4VoxFile3D
 
 # ═════════════════════════════════════════════════════════════════════════════
 #  Shared private helpers
@@ -55,7 +51,9 @@ def _read_geometry(f: h5py.File) -> VoxGeometry:
     else:
         raise ValueError(f"Unexpected dataset rank {ndim}")
 
-    print("⚠  /metadata absent – spacing=1 mm, origin=0 mm")
+    warnings.warn(
+        "/metadata absent – spacing=1 mm, origin=0 mm", UserWarning, stacklevel=2
+    )
     return VoxGeometry(dims_xyz=np.array([nx, ny, nz], dtype=float))
 
 
@@ -109,33 +107,15 @@ def _read_run_log(f: h5py.File) -> pd.DataFrame | None:
     return df
 
 
-def _qty_whitelist(
-    available: list[str], requested: list[str] | None
+def select_quantities(
+    available: tp.Iterable[str],
+    quantities: tp.Iterable[str] | None,
 ) -> list[str]:
-    if requested is None:
-        return available
-    missing = set(requested) - set(available)
+    avail = list(available)
+    if quantities is None:
+        return avail
+    wanted = list(quantities)
+    missing = set(wanted) - set(avail)
     if missing:
-        raise KeyError(f"Quantities not found in file: {missing}")
-    return [q for q in available if q in requested]
-
-
-def read_g4vox_hdf5_3d(
-    filepath: str | Path,
-    quantities: list[str] | None = None,
-    subrun_ids: list[int] | None = None,
-) -> G4VoxFile3D:
-    """
-    Compatibility wrapper for a G4Vox HDF5 file written in Snapshot3D mode.
-
-    Returns a lazy G4VoxFile3D instance and applies any requested quantity or
-    subrun selections without materializing voxel arrays immediately.
-    """
-    from g4utils.HDF5.vox_file_3d import G4VoxFile3D
-
-    sim = G4VoxFile3D(filepath)
-    if quantities is not None:
-        sim.select_quantity(_qty_whitelist(sim.quantity_names, quantities))
-    if subrun_ids is not None:
-        sim.select_subrun(subrun_ids=subrun_ids)
-    return sim
+        raise KeyError(f"Quantities not found: {sorted(missing)}")
+    return [q for q in avail if q in wanted]

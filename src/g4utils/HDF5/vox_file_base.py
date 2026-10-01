@@ -10,13 +10,18 @@ import numpy as np
 import numpy.typing as npt
 import pandas as pd
 
-from g4utils.HDF5.shared import _read_geometry, _read_run_log
-from g4utils.HDF5.vti_export import (
-    select_quantities,
-    write_pvd_collection,
-    write_vti,
-)
+from g4utils.HDF5.shared import _read_geometry, _read_run_log, select_quantities
+from g4utils.HDF5.vti_export import write_pvd_collection, write_vti
 from g4utils.Vox.vox_geometry import VoxGeometry
+
+
+def _accumulator_dtype(dtype: np.dtype) -> np.dtype:
+    """Return the dtype used to accumulate sums of arrays of ``dtype``."""
+    if np.issubdtype(dtype, np.floating):
+        return np.dtype(np.float64)
+    if np.issubdtype(dtype, np.integer) or np.issubdtype(dtype, np.bool_):
+        return np.dtype(np.int64)
+    return np.dtype(dtype)
 
 
 @dataclass
@@ -88,12 +93,18 @@ class HDF5LayoutBackend(ABC):
     def sum_subruns(
         self, subrun_ids: list[int], quantities: list[str]
     ) -> dict[str, np.ndarray]:
+        """
+        Sum the requested quantities over ``subrun_ids``.
+
+        Floating input is accumulated in float64, integer or bool input in
+        int64, and any other dtype in its own dtype.
+        """
         summed: dict[str, np.ndarray] = {}
         for sid in subrun_ids:
             arrays = self.load_subrun(sid, quantities)
             if not summed:
                 summed = {
-                    name: np.zeros_like(array)
+                    name: np.zeros(array.shape, dtype=_accumulator_dtype(array.dtype))
                     for name, array in arrays.items()
                 }
             for name, array in arrays.items():
