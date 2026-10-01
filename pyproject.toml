@@ -4,8 +4,8 @@ build-backend = "hatchling.build"
 
 [project]
 name = "g4utils"
-version = "0.1.0"
-description = "A Python utility library"
+version = "0.2.0"
+description = "Readers and VTK export for G4Vox voxel HDF5 output from Geant4 simulations"
 readme = "README.md"
 requires-python = ">=3.10"
 license = "MIT"
@@ -13,7 +13,7 @@ license-files = ["LICENSE"]
 authors = [
   { name = "R. Tonneau", email = "romain.tonneau@unamur.be" },
 ]
-keywords = []
+keywords = ["geant4", "geant4-dna", "hdf5", "voxel", "vtk"]
 classifiers = [
     "Development Status :: 3 - Alpha",
     "Intended Audience :: Developers",
