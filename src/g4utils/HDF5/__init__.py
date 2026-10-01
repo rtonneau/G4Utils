@@ -1,3 +1,4 @@
+from .detect import detect_layout, open_vox_file
 from .vox_file_3d import G4VoxFile3D, SubRun
 from .vox_file_4d import G4VoxFile4D
 from .vox_file_base import (
@@ -18,6 +19,8 @@ __all__ = [
     "Snapshot3DBackend",
     "Dataset4DBackend",
     "SubRun",
+    "detect_layout",
+    "open_vox_file",
     "write_pvd_collection",
     "write_vti",
 ]
