@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import warnings
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
 from pathlib import Path
@@ -177,6 +178,11 @@ class Dataset4DBackend(HDF5LayoutBackend):
     """
     Backend for 4D dataset files using one dataset per quantity.
 
+    Parameters
+    ----------
+    path : str or pathlib.Path
+        Path to the HDF5 file to serve.
+
     Notes
     -----
     Expected layout:
@@ -185,8 +191,16 @@ class Dataset4DBackend(HDF5LayoutBackend):
     - ``/run_log``
     - ``/Dose`` (or other quantities) with shape ``(N, nZ, nY, nX)``
 
-    where ``N`` is the subrun axis.
+    where ``N`` is the slice axis. Row ``i`` of ``/run_log`` describes slice
+    ``i``, so subrun IDs are read from ``run_log["subrun_id"]``. When the run
+    log is missing, has a row count different from ``N``, or holds duplicate
+    IDs, a ``UserWarning`` is emitted and slice indices ``0..N-1`` are used as
+    subrun IDs instead.
     """
+
+    def __init__(self, path: str | Path) -> None:
+        super().__init__(path)
+        self._slice_index: dict[int, int] = {}
 
     def discover(self) -> BackendDiscovery:
         with h5py.File(self.path, "r") as f:
@@ -202,27 +216,80 @@ class Dataset4DBackend(HDF5LayoutBackend):
                 if isinstance(obj, h5py.Dataset) and obj.ndim == 4:
                     dataset_names.append(key)
 
-            n_subruns_hint = 0
+            n_slices = 0
             if dataset_names:
                 ds_obj = f[dataset_names[0]]
                 if not isinstance(ds_obj, h5py.Dataset):
                     raise TypeError(
                         f"Expected dataset for '{dataset_names[0]}'"
                     )
-                n_subruns_hint = int(ds_obj.shape[0])
+                n_slices = int(ds_obj.shape[0])
+
+        subrun_ids = self._subrun_ids_from_run_log(run_log, n_slices)
+        self._slice_index = {sid: i for i, sid in enumerate(subrun_ids)}
 
         return BackendDiscovery(
             geometry=geometry,
             run_log=run_log,
             root_attrs=root_attrs,
             dataset_names=dataset_names,
-            available_subrun_ids=list(range(n_subruns_hint)),
-            n_subruns_hint=n_subruns_hint,
+            available_subrun_ids=subrun_ids,
+            n_subruns_hint=n_slices,
         )
+
+    def _subrun_ids_from_run_log(
+        self, run_log: pd.DataFrame | None, n_slices: int
+    ) -> list[int]:
+        """
+        Map slices to subrun IDs, falling back to slice indices.
+
+        Parameters
+        ----------
+        run_log : pandas.DataFrame or None
+            Parsed ``/run_log`` table.
+        n_slices : int
+            Length of the slice axis of the quantity datasets.
+
+        Returns
+        -------
+        list of int
+            Subrun ID of each slice, in slice order.
+        """
+        fallback = list(range(n_slices))
+        if n_slices == 0:
+            return fallback
+
+        reason: str | None = None
+        if run_log is None:
+            reason = "run_log missing"
+        elif "subrun_id" not in run_log.columns:
+            reason = "run_log missing 'subrun_id' column"
+        elif len(run_log) != n_slices:
+            reason = (
+                f"run_log has {len(run_log)} rows but datasets have "
+                f"{n_slices} slices"
+            )
+        else:
+            ids = [int(sid) for sid in run_log["subrun_id"]]
+            if len(set(ids)) != len(ids):
+                reason = "duplicate subrun_id in run_log"
+            else:
+                return ids
+
+        warnings.warn(
+            f"{self.path.name}: {reason}; using slice indices "
+            f"0..{n_slices - 1} as subrun IDs.",
+            UserWarning,
+            stacklevel=2,
+        )
+        return fallback
 
     def load_subrun(
         self, subrun_id: int, quantities: list[str]
     ) -> dict[str, np.ndarray]:
+        if subrun_id not in self._slice_index:
+            raise KeyError(f"Subrun '{subrun_id}' not found")
+        slice_index = self._slice_index[subrun_id]
         with h5py.File(self.path, "r") as f:
             loaded: dict[str, np.ndarray] = {}
             for quantity in quantities:
@@ -231,7 +298,7 @@ class Dataset4DBackend(HDF5LayoutBackend):
                 ds_obj = f[quantity]
                 if not isinstance(ds_obj, h5py.Dataset):
                     raise TypeError(f"Expected dataset for '{quantity}'")
-                loaded[quantity] = np.asarray(ds_obj[subrun_id, ...])
+                loaded[quantity] = np.asarray(ds_obj[slice_index, ...])
             return loaded
 
 
