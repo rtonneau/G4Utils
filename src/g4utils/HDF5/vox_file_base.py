@@ -4,6 +4,7 @@ import warnings
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
 from pathlib import Path
+from typing import Literal
 
 import h5py
 import numpy as np
@@ -534,6 +535,9 @@ class G4VoxFileBase:
         self,
         filepath: str | Path,
         dtype: npt.DTypeLike = np.float32,
+        *,
+        encoding: Literal["binary", "ascii"] = "binary",
+        compress: bool = False,
     ) -> Path:
         qtys = (
             self.selected_quantities
@@ -553,12 +557,17 @@ class G4VoxFileBase:
             geometry=self._require_geometry(),
             cell_arrays=arrays,
             dtype=dtype,
+            encoding=encoding,
+            compress=compress,
         )
 
     def dump_selection_to_vti_timeseries(
         self,
         filepath: str | Path,
         dtype: npt.DTypeLike = np.float32,
+        *,
+        encoding: Literal["binary", "ascii"] = "binary",
+        compress: bool = False,
     ) -> Path:
         pvd_path = Path(filepath)
         if pvd_path.suffix.lower() != ".pvd":
@@ -587,6 +596,8 @@ class G4VoxFileBase:
                 geometry=self._require_geometry(),
                 cell_arrays=arrays,
                 dtype=dtype,
+                encoding=encoding,
+                compress=compress,
             )
             datasets.append((float(sid), frame_name))
 
@@ -596,16 +607,22 @@ class G4VoxFileBase:
         self,
         filepath: str | Path,
         dtype: npt.DTypeLike = np.float32,
+        *,
+        encoding: Literal["binary", "ascii"] = "binary",
+        compress: bool = False,
     ) -> Path:
         if not self.data:
             raise ValueError(
-                "No subrun data loaded. Iterate once or call next(sim) first."
+                "No subrun data loaded. Use it inside `for sid in sim:` "
+                "or call next(iter(sim)) first."
             )
         return write_vti(
             filepath=filepath,
             geometry=self._require_geometry(),
             cell_arrays=self.data,
             dtype=dtype,
+            encoding=encoding,
+            compress=compress,
         )
 
     def _require_geometry(self) -> VoxGeometry:
