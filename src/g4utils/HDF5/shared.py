@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import warnings
 from pathlib import Path
 from typing import TYPE_CHECKING
 
@@ -17,6 +18,8 @@ if TYPE_CHECKING:
 # ═════════════════════════════════════════════════════════════════════════════
 
 _SKIP_KEYS = {"metadata", "run_log"}
+
+RUN_LOG_COLUMNS = ("unix_timestamp", "primaries", "runtime_s", "subrun_id")
 
 
 def _read_geometry(f: h5py.File) -> VoxGeometry:
@@ -56,14 +59,54 @@ def _read_geometry(f: h5py.File) -> VoxGeometry:
     return VoxGeometry(dims_xyz=np.array([nx, ny, nz], dtype=float))
 
 
+def _decode_columns_attr(value: object) -> list[str]:
+    """Split a ``columns`` attribute (str, bytes or array of those) on commas."""
+    if isinstance(value, np.ndarray):
+        value = value.item() if value.size == 1 else ",".join(
+            v.decode() if isinstance(v, bytes) else str(v) for v in value.ravel()
+        )
+    if isinstance(value, bytes):
+        value = value.decode("utf-8")
+    return [c.strip() for c in str(value).split(",")]
+
+
 def _read_run_log(f: h5py.File) -> pd.DataFrame | None:
+    """
+    Read ``/run_log`` into a DataFrame with named columns.
+
+    Names come from the dataset ``columns`` attribute when present, else from
+    ``RUN_LOG_COLUMNS``. If the number of names differs from the number of
+    columns, a ``UserWarning`` is emitted and ``RUN_LOG_COLUMNS`` is used by
+    position, extra columns being named ``col_<i>``. ``subrun_id`` and
+    ``primaries`` are cast to ``int64``.
+    """
     if "run_log" not in f:
         return None
-    raw = f["run_log"][()]  # type: ignore
-    cols = ["subrun_id", "nPrimaries", "seed1", "seed2"]
-    if raw.ndim == 1:  # type: ignore
-        raw = raw.reshape(1, -1)  # type: ignore
-    return pd.DataFrame(raw[:, : len(cols)], columns=cols[: raw.shape[1]])  # type: ignore
+    ds = f["run_log"]
+    raw = np.asarray(ds[()])  # type: ignore
+    if raw.ndim == 1:
+        raw = raw.reshape(1, -1)
+    ncols = raw.shape[1]
+
+    attr = ds.attrs.get("columns")  # type: ignore
+    names = _decode_columns_attr(attr) if attr is not None else list(RUN_LOG_COLUMNS)
+    if len(names) != ncols:
+        warnings.warn(
+            f"/run_log has {ncols} columns but {len(names)} names were found; "
+            "falling back to default column names by position.",
+            UserWarning,
+            stacklevel=2,
+        )
+        names = [
+            RUN_LOG_COLUMNS[i] if i < len(RUN_LOG_COLUMNS) else f"col_{i}"
+            for i in range(ncols)
+        ]
+
+    df = pd.DataFrame(raw, columns=names)
+    for col in ("subrun_id", "primaries"):
+        if col in df.columns:
+            df[col] = df[col].astype(np.int64)
+    return df
 
 
 def _qty_whitelist(

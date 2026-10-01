@@ -433,9 +433,9 @@ class G4VoxFileBase:
         return sid
 
     def total_primaries(self) -> int:
-        if self.run_log is None or "nPrimaries" not in self.run_log.columns:
+        if self.run_log is None or "primaries" not in self.run_log.columns:
             return 0
-        return int(self.run_log["nPrimaries"].sum())
+        return int(self.run_log["primaries"].sum())
 
     def get(self, qty: str, subrun_id: int) -> np.ndarray:
         if self.current_subrun_id == subrun_id and qty in self.data:
