@@ -3,6 +3,7 @@ import numpy as np
 import pytest
 
 from g4utils.HDF5 import MesoSpatialSnapshot, SpeciesMesoSpatialFile, concentration_M
+from g4utils.HDF5.species_meso_spatial import MesoGrid
 
 from .conftest import MESO_SPECIES, write_species_meso_spatial
 
@@ -134,3 +135,131 @@ def test_concentration_M_unknown_species(species_meso_spatial_file):
 
     with pytest.raises(KeyError):
         s.concentration_M(species=["UnknownSpecies"])
+
+
+# ---------------------------------------------------------------------------
+# MesoGrid and to_dense
+# ---------------------------------------------------------------------------
+def _dense_snapshot(cell=6.25, ijk=((2, 3, 4), (3, 3, 4), (5, 7, 4)), species=MESO_SPECIES):
+    """Snapshot whose cell centres sit on the lattice (k + 0.5) * cell."""
+    ijk = np.asarray(ijk, dtype=np.int64).reshape(-1, 3)
+    pos = (ijk + 0.5) * cell
+    counts = np.arange(1, ijk.shape[0] * len(species) + 1, dtype=np.uint32).reshape(
+        -1, len(species)
+    )
+    return MesoSpatialSnapshot(
+        run=0, event=0, index=0, time_ns=1.0, cell_size_nm=cell,
+        position_nm=pos, counts=counts, species=list(species),
+    )
+
+
+def test_mesogrid_geometry():
+    g = MesoGrid(origin_nm=(10.0, 0.0, -5.0), cell_size_nm=2.0, shape=(3, 2, 4))
+    np.testing.assert_allclose(g.centers(0), [11.0, 13.0, 15.0])
+    np.testing.assert_allclose(g.centers(1), [1.0, 3.0])
+    assert g.centers(2).shape == (4,)
+    idx = g.index_of([[11.0, 1.0, -4.0], [15.0, 3.0, 2.0]])
+    assert idx.dtype == np.int64
+    np.testing.assert_array_equal(idx, [[0, 0, 0], [2, 1, 3]])
+    np.testing.assert_array_equal(g.index_of([9.9, 0.0, -5.0]), [-1, 0, 0])
+    with pytest.raises(ValueError):
+        g.centers(3)
+
+
+@pytest.mark.parametrize("cell", [6.25, 12.5, 25.0, 50.0])
+def test_to_dense_round_trip_default_extent(cell):
+    s = _dense_snapshot(cell=cell)
+    dense, grid = s.to_dense("°OH^0")
+    assert dense.dtype == np.uint32
+    assert grid.cell_size_nm == cell
+    assert grid.origin_nm == (2 * cell, 3 * cell, 4 * cell)
+    assert grid.shape == (4, 5, 1) == dense.shape
+    # every row lands on the cell whose centre is its position
+    idx = grid.index_of(s.position_nm)
+    np.testing.assert_array_equal(idx, [[0, 0, 0], [1, 0, 0], [3, 4, 0]])
+    np.testing.assert_array_equal(dense[tuple(idx.T)], s.counts[:, 1])
+    assert dense.sum() == s.counts[:, 1].sum()
+    # cell centres of the grid reproduce the input positions
+    for ax in range(3):
+        c = grid.centers(ax)
+        assert set(np.round(s.position_nm[:, ax], 9)) <= set(np.round(c, 9))
+
+
+def test_to_dense_concentration():
+    s = _dense_snapshot()
+    n, _ = s.to_dense("H3O^1")
+    c, grid = s.to_dense("H3O^1", concentration=True)
+    assert c.dtype == np.float64 and c.shape == n.shape
+    np.testing.assert_allclose(c, concentration_M(n, 6.25))
+    assert c.sum() > 0
+
+
+def test_to_dense_explicit_bounds():
+    s = _dense_snapshot()
+    cell = 6.25
+    bounds = [[0.0, 10 * cell], [0.0, 10 * cell], [0.0, 10 * cell]]
+    dense, grid = s.to_dense("e_aq^-1", bounds_nm=bounds)
+    assert grid.origin_nm == (0.0, 0.0, 0.0)
+    assert grid.shape == (10, 10, 10)
+    assert dense.sum() == s.counts[:, 2].sum()
+    np.testing.assert_array_equal(dense[2, 3, 4], s.counts[0, 2])
+    # same bounds -> same shape for different snapshots
+    other = _dense_snapshot(ijk=((0, 0, 0),))
+    d2, g2 = other.to_dense("e_aq^-1", bounds_nm=bounds)
+    assert d2.shape == dense.shape and g2 == grid
+
+
+def test_to_dense_bounds_drop_outside_cells():
+    s = _dense_snapshot()
+    cell = 6.25
+    bounds = [[2 * cell, 4 * cell], [3 * cell, 4 * cell], [4 * cell, 5 * cell]]
+    dense, grid = s.to_dense("H3O^1", bounds_nm=bounds)
+    assert grid.shape == (2, 1, 1)
+    # only the first two rows are inside
+    np.testing.assert_array_equal(dense[:, 0, 0], s.counts[:2, 0])
+
+
+def test_to_dense_bounds_snapped_outwards():
+    s = _dense_snapshot()
+    cell = 6.25
+    bounds = [[0.3 * cell, 1.2 * cell], [0.0, cell], [0.0, cell]]
+    _, grid = s.to_dense("H3O^1", bounds_nm=bounds)
+    assert grid.origin_nm == (0.0, 0.0, 0.0)
+    assert grid.shape == (2, 1, 1)
+
+
+def test_to_dense_empty_snapshot(species_meso_spatial_file):
+    f = SpeciesMesoSpatialFile(species_meso_spatial_file)
+    s = f.read_snapshot(0, 0, 2)
+    dense, grid = s.to_dense("H3O^1")
+    assert dense.size == 0 and grid.shape == (0, 0, 0)
+    bounds = [[0.0, 50.0]] * 3
+    dense, grid = s.to_dense("H3O^1", bounds_nm=bounds)
+    assert dense.shape == grid.shape == (4, 4, 4)
+    assert dense.dtype == np.uint32 and not dense.any()
+    conc, _ = s.to_dense("H3O^1", bounds_nm=bounds, concentration=True)
+    assert conc.dtype == np.float64 and not conc.any()
+
+
+def test_to_dense_real_fixture_snapshot(species_meso_spatial_file):
+    f = SpeciesMesoSpatialFile(species_meso_spatial_file)
+    s = f.read_snapshot(0, 0, 0)
+    dense, grid = s.to_dense("°OH^0")
+    assert dense.ndim == 3 and dense.shape == grid.shape
+    assert dense.sum() == s.counts[:, 1].sum()
+
+
+def test_to_dense_sums_duplicate_cells():
+    s = _dense_snapshot(ijk=((1, 1, 1), (1, 1, 1)))
+    dense, grid = s.to_dense("H3O^1")
+    assert dense.shape == (1, 1, 1)
+    assert dense[0, 0, 0] == s.counts[:, 0].sum()
+
+
+def test_to_dense_unknown_species():
+    s = _dense_snapshot()
+    with pytest.raises(KeyError):
+        s.to_dense("Nope")
+    s.species = None
+    with pytest.raises(KeyError):
+        s.to_dense("H3O^1")
