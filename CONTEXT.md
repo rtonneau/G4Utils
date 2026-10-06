@@ -74,4 +74,13 @@ _Avoid_: "yield" alone (ambiguous between count and G-value).
 **Short name**:
 The plain species label (`OH`, `e_aq`, `HO2`, `HO2-`, `O2-`, `H3O+`, ...) mapped
 from the Geant4 molecule name (`°OH^0`, `e_aq^-1`, `HO_2°^0`, ...). Species are
-identified by name, never by numeric species ID.
+identified by name, never by numeric species ID. The one species vocabulary for both
+species and reactions: radicals carry no `*` mark.
+_Avoid_: radical notation (`OH*`, `H*`).
+
+**Reaction table**:
+The list of reactions declared in a Dump's `ReactionsMetadata.csv`, one row per
+reaction, with its reactants and products as Short names (with stoichiometric
+repeats). A reaction may have no products. Describes the chemistry, not what happened:
+counts live in the reaction tallies.
+_Avoid_: "reaction metadata" (collides with Manifest wording), "reaction list".
