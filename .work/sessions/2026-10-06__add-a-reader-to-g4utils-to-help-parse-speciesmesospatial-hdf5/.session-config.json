@@ -108,9 +108,33 @@
         "ticket": "02-concentration",
         "commit": "2e1cd94"
       }
+    },
+    {
+      "at": "2026-10-06T16:02:25.073Z",
+      "event": "ticket_started",
+      "phase": "ship",
+      "files": [
+        "02-plan/tickets/03-readme.md",
+        "03-implement/03-readme/commit-log.md"
+      ],
+      "detail": {
+        "ticket": "03-readme"
+      }
+    },
+    {
+      "at": "2026-10-06T16:02:44.275Z",
+      "event": "ticket_done",
+      "phase": "finish-pending",
+      "files": [
+        "03-implement/03-readme/commit-log.md"
+      ],
+      "detail": {
+        "ticket": "03-readme",
+        "commit": "29ad3d6"
+      }
     }
   ],
-  "current_phase": "ship",
+  "current_phase": "finish-pending",
   "git": {
     "branch": "feat/species-meso-spatial-reader",
     "base_branch": "main",
