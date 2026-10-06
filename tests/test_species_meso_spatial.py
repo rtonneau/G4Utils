@@ -2,7 +2,7 @@ import h5py
 import numpy as np
 import pytest
 
-from g4utils.HDF5 import MesoSpatialSnapshot, SpeciesMesoSpatialFile
+from g4utils.HDF5 import MesoSpatialSnapshot, SpeciesMesoSpatialFile, concentration_M
 
 from .conftest import MESO_SPECIES, write_species_meso_spatial
 
@@ -78,3 +78,59 @@ def test_iter_snapshots(species_meso_spatial_file):
     assert {s.run for s in f.iter_snapshots(run=2)} == {2}
     assert [s.index for s in f.iter_snapshots(run=0, event=0)] == [0, 1, 2, 10]
     assert {s.event for s in f.iter_snapshots(event=10)} == {10}
+
+
+def test_concentration_M_hand_computed(species_meso_spatial_file):
+    """Test concentration_M with hand-computed values."""
+    f = SpeciesMesoSpatialFile(species_meso_spatial_file)
+    s = f.read_snapshot(0, 0, 0)
+    # Cell size is 6.25 nm, volume = (6.25 * 1e-8)^3 L
+    cell_size_nm = 6.25
+    volume_L = (cell_size_nm * 1e-8) ** 3
+    N_A = 6.02214076e23
+
+    # Test with all columns (species=None)
+    conc = s.concentration_M()
+    assert conc.dtype == np.float64
+    assert conc.shape == s.counts.shape
+
+    # Manual calculation for first cell, first species
+    expected_first = s.counts[0, 0] / (N_A * volume_L)
+    np.testing.assert_allclose(conc[0, 0], expected_first)
+
+
+def test_concentration_M_column_selection(species_meso_spatial_file):
+    """Test concentration_M with species column selection."""
+    f = SpeciesMesoSpatialFile(species_meso_spatial_file)
+    s = f.read_snapshot(0, 0, 0)
+
+    # Select specific species
+    conc = s.concentration_M(species=["°OH^0", "H3O^1"])
+    assert conc.shape == (4, 2)
+    assert conc.dtype == np.float64
+
+    # Compare with all columns version
+    conc_all = s.concentration_M()
+    # Species order in file: H3O^1 (0), °OH^0 (1), e_aq^-1 (2)
+    # Requested order: °OH^0 (1), H3O^1 (0)
+    np.testing.assert_allclose(conc[:, 0], conc_all[:, 1])  # °OH^0
+    np.testing.assert_allclose(conc[:, 1], conc_all[:, 0])  # H3O^1
+
+
+def test_concentration_M_empty_snapshot(species_meso_spatial_file):
+    """Test concentration_M with an empty snapshot (N=0)."""
+    f = SpeciesMesoSpatialFile(species_meso_spatial_file)
+    s = f.read_snapshot(0, 0, 2)  # Empty snapshot
+
+    conc = s.concentration_M()
+    assert conc.shape == (0, len(MESO_SPECIES))
+    assert conc.dtype == np.float64
+
+
+def test_concentration_M_unknown_species(species_meso_spatial_file):
+    """Test concentration_M raises KeyError for unknown species."""
+    f = SpeciesMesoSpatialFile(species_meso_spatial_file)
+    s = f.read_snapshot(0, 0, 0)
+
+    with pytest.raises(KeyError):
+        s.concentration_M(species=["UnknownSpecies"])

@@ -8,7 +8,11 @@ from .vox_file_base import (
     HDF5LayoutBackend,
     Snapshot3DBackend,
 )
-from .species_meso_spatial import MesoSpatialSnapshot, SpeciesMesoSpatialFile
+from .species_meso_spatial import (
+    MesoSpatialSnapshot,
+    SpeciesMesoSpatialFile,
+    concentration_M,
+)
 from .vti_export import write_pvd_collection, write_vti
 
 __all__ = [
@@ -22,6 +26,7 @@ __all__ = [
     "SubRun",
     "MesoSpatialSnapshot",
     "SpeciesMesoSpatialFile",
+    "concentration_M",
     "detect_layout",
     "open_vox_file",
     "write_pvd_collection",

@@ -13,11 +13,34 @@ _RUN_RE = re.compile(r"^run(\d+)$")
 _EVENT_RE = re.compile(r"^event(\d+)$")
 _SNAP_RE = re.compile(r"^snapshot(\d+)$")
 
+# Avogadro's number
+_N_A = 6.02214076e23
+
 
 def _attr_str(value) -> str:
     if isinstance(value, bytes):
         return value.decode("utf-8")
     return str(value)
+
+
+def concentration_M(counts: npt.NDArray[np.uint32], cell_size_nm: float) -> npt.NDArray[np.float64]:
+    """
+    Convert molecule counts to molar concentration.
+
+    Parameters
+    ----------
+    counts : numpy.ndarray
+        Molecule counts, shape (N, S) or (N,), uint32.
+    cell_size_nm : float
+        Side of the cubic cell, in nm.
+
+    Returns
+    -------
+    numpy.ndarray
+        Concentration in molarity (M), same shape as counts, float64.
+    """
+    volume_L = (cell_size_nm * 1e-8) ** 3
+    return np.asarray(counts, dtype=np.float64) / (_N_A * volume_L)
 
 
 @dataclass
@@ -37,6 +60,8 @@ class MesoSpatialSnapshot:
         Cell centres, shape (N, 3), float64, in nm.
     counts : numpy.ndarray
         Molecules per cell and species, shape (N, S), uint32.
+    species : list[str] or None
+        Column names of counts (in order).
     """
 
     run: int
@@ -46,6 +71,47 @@ class MesoSpatialSnapshot:
     cell_size_nm: float
     position_nm: npt.NDArray[np.float64]
     counts: npt.NDArray[np.uint32]
+    species: list[str] | None = None
+
+    def concentration_M(self, species: list[str] | None = None) -> npt.NDArray[np.float64]:
+        """
+        Compute molar concentration.
+
+        Parameters
+        ----------
+        species : list[str] or None
+            Species names to extract (in that order).
+            If None, return all columns.
+
+        Returns
+        -------
+        numpy.ndarray
+            Concentration in molarity (M), shape (N, S) or (N, 0) if empty.
+            If species is None, columns match snapshot.species;
+            otherwise, columns match the requested species list in order.
+
+        Raises
+        ------
+        KeyError
+            If any species name is unknown.
+        """
+        if species is None:
+            # Return all columns
+            counts = self.counts
+        else:
+            # Select requested species columns
+            if self.species is None:
+                raise KeyError("Snapshot has no species information")
+            cols = []
+            for sp in species:
+                try:
+                    idx = self.species.index(sp)
+                    cols.append(idx)
+                except ValueError:
+                    raise KeyError(f"Unknown species: {sp}") from None
+            counts = self.counts[:, cols]
+
+        return concentration_M(counts, self.cell_size_nm)
 
 
 class SpeciesMesoSpatialFile:
@@ -209,6 +275,7 @@ class SpeciesMesoSpatialFile:
             cell_size_nm=cell_size_nm,
             position_nm=position,
             counts=counts,
+            species=list(self._species),
         )
 
     def iter_snapshots(
