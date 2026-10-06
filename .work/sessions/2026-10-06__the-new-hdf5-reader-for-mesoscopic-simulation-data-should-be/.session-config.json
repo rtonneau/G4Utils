@@ -108,9 +108,33 @@
         "ticket": "02-snapshot-to-vti",
         "commit": "95d5698"
       }
+    },
+    {
+      "at": "2026-10-06T20:17:37.743Z",
+      "event": "ticket_started",
+      "phase": "ship",
+      "files": [
+        "02-plan/tickets/03-meso-vti-timeseries.md",
+        "03-implement/03-meso-vti-timeseries/commit-log.md"
+      ],
+      "detail": {
+        "ticket": "03-meso-vti-timeseries"
+      }
+    },
+    {
+      "at": "2026-10-06T20:19:52.914Z",
+      "event": "ticket_done",
+      "phase": "finish-pending",
+      "files": [
+        "03-implement/03-meso-vti-timeseries/commit-log.md"
+      ],
+      "detail": {
+        "ticket": "03-meso-vti-timeseries",
+        "commit": "112c780"
+      }
     }
   ],
-  "current_phase": "ship",
+  "current_phase": "finish-pending",
   "git": {
     "branch": "feat/meso-spatial-vti-export",
     "base_branch": "main",
