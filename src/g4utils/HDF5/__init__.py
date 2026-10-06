@@ -9,6 +9,8 @@ from .vox_file_base import (
     Snapshot3DBackend,
 )
 from .species_meso_spatial import (
+    DenseMesoPeriod,
+    MesoGrid,
     MesoSpatialSnapshot,
     SpeciesMesoSpatialFile,
     concentration_M,
@@ -24,6 +26,8 @@ __all__ = [
     "Snapshot3DBackend",
     "Dataset4DBackend",
     "SubRun",
+    "MesoGrid",
+    "DenseMesoPeriod",
     "MesoSpatialSnapshot",
     "SpeciesMesoSpatialFile",
     "concentration_M",
