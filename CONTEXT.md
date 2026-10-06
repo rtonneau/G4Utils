@@ -42,6 +42,28 @@ _Avoid_: subrun ID
 The per-subrun table written by the writer: unix timestamp, number of primaries, runtime in seconds and subrun ID.
 _Avoid_: seeds table
 
+### Mesoscopic spatial output (HDF5)
+
+**Meso file**:
+One `SpeciesMesoSpatial.h5` file written by dnachem-min, holding the mesoscopic spatial state of one or more runs.
+_Avoid_: Vox file (different writer and layout), Dump
+
+**Meso snapshot**:
+The occupied cells of the mesoscopic mesh, with molecule counts per species, at one record time of one event of one run.
+_Avoid_: frame, subrun
+
+**Meso cell**:
+One cubic cell of the mesoscopic mesh, identified by its centre. Only occupied cells are stored; its side (cell size) can differ from one snapshot to the next.
+_Avoid_: voxel (a voxel belongs to a Vox file's Geometry)
+
+**Event series**:
+The ordered meso snapshots of one (run, event), exported as one time series. Runs and events are never merged.
+_Avoid_: timeseries of a run
+
+**Common box**:
+The physical extent covering the occupied cells of every snapshot of an event series, so exported frames line up. May be overridden by the caller.
+_Avoid_: bounding box (per-snapshot extents are not used by default)
+
 ### DnaChem output
 
 **Dump**:
