@@ -3,7 +3,7 @@ from __future__ import annotations
 import re
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Iterator, NamedTuple
+from typing import Iterator, Literal, NamedTuple
 
 import h5py
 import numpy as np
@@ -112,6 +112,82 @@ class MesoSpatialSnapshot:
             counts = self.counts[:, cols]
 
         return concentration_M(counts, self.cell_size_nm)
+
+    def to_vti(
+        self,
+        path: str | Path,
+        species: list[str] | None = None,
+        dtype: npt.DTypeLike = np.float32,
+        extent: tuple[npt.ArrayLike, npt.ArrayLike] | None = None,
+        *,
+        encoding: Literal["binary", "ascii"] = "binary",
+        compress: bool = False,
+    ) -> Path:
+        """
+        Write the snapshot to a VTK ImageData (.vti) file.
+
+        The sparse cells are placed on a dense lattice (see
+        ``_densify_snapshot``). CellData holds ``<species>_count`` and
+        ``<species>_M`` (molar concentration) per selected species, named
+        after the raw species names. Origin and spacing are in nm; unoccupied
+        cells are 0.
+
+        Parameters
+        ----------
+        path : str or Path
+            Output ``.vti`` path.
+        species : list[str] or None
+            Species to export (in that order). None exports all.
+        dtype : numpy dtype, default np.float32
+            Output data type.
+        extent : (array-like, array-like) or None
+            Physical box ``(min_xyz_nm, max_xyz_nm)`` in nm to cover.
+        encoding : {"binary", "ascii"}, default "binary"
+        compress : bool, default False
+            zlib-compress binary data.
+
+        Returns
+        -------
+        Path
+            The written file.
+
+        Raises
+        ------
+        KeyError
+            If a species name is unknown.
+        """
+        from g4utils.HDF5.vti_export import write_vti
+        from g4utils.Vox.vox_geometry import VoxGeometry
+
+        if species is None:
+            if self.species is None:
+                raise KeyError("Snapshot has no species information")
+            names = list(self.species)
+        else:
+            names = list(species)
+        if self.species is None:
+            raise KeyError("Snapshot has no species information")
+        cols = []
+        for sp in names:
+            try:
+                cols.append(self.species.index(sp))
+            except ValueError:
+                raise KeyError(f"Unknown species: {sp}") from None
+
+        grid = _densify_snapshot(self, extent)
+        geometry = VoxGeometry(
+            dims_xyz=np.array(grid.dims),
+            spacing_mm=np.full(3, grid.cell_size_nm, dtype=np.float64),
+            origin_mm=np.asarray(grid.origin_nm, dtype=np.float64),
+        )
+        arrays: dict[str, np.ndarray] = {}
+        for name, col in zip(names, cols):
+            dense = grid.counts[col]
+            arrays[f"{name}_count"] = dense
+            arrays[f"{name}_M"] = concentration_M(dense, grid.cell_size_nm)
+        return write_vti(
+            path, geometry, arrays, dtype, encoding=encoding, compress=compress
+        )
 
 
 # Off-lattice tolerance, as a fraction of a cell, and slack used when growing
