@@ -256,6 +256,36 @@ class MesoSpatialSnapshot:
         return dense, grid
 
 
+@dataclass
+class DenseMesoPeriod:
+    """
+    Dense time series of one species over a run of snapshots with one cell size.
+
+    Parameters
+    ----------
+    data : numpy.ndarray
+        Shape (T, nx, ny, nz); uint32 counts, or float64 molar concentration.
+    grid : MesoGrid
+        Geometry shared by every time step; ``grid.shape == data.shape[1:]``.
+    times_ns : numpy.ndarray
+        Record time of each step, shape (T,), float64, in ns.
+    snapshot_indices : list[int]
+        Snapshot index of each step.
+    species : str
+        Species name.
+    run, event : int
+        Run and event numbers.
+    """
+
+    data: npt.NDArray
+    grid: MesoGrid
+    times_ns: npt.NDArray[np.float64]
+    snapshot_indices: list[int]
+    species: str
+    run: int
+    event: int
+
+
 class SpeciesMesoSpatialFile:
     """
     Reader for ``SpeciesMesoSpatial.h5`` files written by dnachem-min.
@@ -439,6 +469,101 @@ class SpeciesMesoSpatialFile:
                     continue
                 for k in snaps:
                     yield self.read_snapshot(r, e, k)
+
+    def read_dense(
+        self,
+        run: int,
+        event: int,
+        species: str,
+        bounds_nm: npt.ArrayLike | None = None,
+        concentration: bool = False,
+    ) -> list[DenseMesoPeriod]:
+        """
+        Read one species of an event as dense 4D arrays, one per cell-size period.
+
+        Consecutive snapshots sharing the same ``cellSize_nm`` form a period; a
+        new period starts whenever the cell size changes. Snapshots are read
+        one at a time.
+
+        Parameters
+        ----------
+        run, event : int
+            Run and event numbers.
+        species : str
+            Species name (must be in :attr:`species`).
+        bounds_nm : array_like or None
+            Extent ``[[xmin, xmax], [ymin, ymax], [zmin, zmax]]`` in nm (world
+            frame), snapped outwards to each period's cell lattice. If None,
+            the bounding box of all occupied cells of the event (whatever the
+            species, all snapshots) is used. Two files given the same bounds
+            give identically shaped arrays for periods of equal cell size.
+        concentration : bool
+            If True, return molar concentration (float64) instead of counts
+            (uint32).
+
+        Returns
+        -------
+        list[DenseMesoPeriod]
+            One period per run of consecutive equal cell sizes, in snapshot
+            order; empty if the event has no snapshot.
+
+        Raises
+        ------
+        KeyError
+            If the run, event or species is unknown.
+        """
+        snaps = self._snapshots(run, event)
+        if species not in self._species:
+            raise KeyError(f"Unknown species: {species}")
+
+        if bounds_nm is None:
+            # First pass: bounding box of the occupied cells, in nm.
+            lo = np.full(3, np.inf)
+            hi = np.full(3, -np.inf)
+            for k, (_, cell) in snaps.items():
+                pos = self.read_snapshot(run, event, k).position_nm
+                if len(pos) == 0:
+                    continue
+                lattice = np.floor(pos / cell)
+                lo = np.minimum(lo, lattice.min(axis=0) * cell)
+                hi = np.maximum(hi, (lattice.max(axis=0) + 1) * cell)
+            if np.isfinite(lo).all():
+                bounds_nm = np.stack([lo, hi], axis=1)
+
+        periods: list[DenseMesoPeriod] = []
+        group: list[int] = []
+
+        def flush() -> None:
+            frames: list[npt.NDArray] = []
+            grid: MesoGrid | None = None
+            for k in group:
+                frame, grid = self.read_snapshot(run, event, k).to_dense(
+                    species, bounds_nm=bounds_nm, concentration=concentration
+                )
+                frames.append(frame)
+            assert grid is not None
+            periods.append(
+                DenseMesoPeriod(
+                    data=np.stack(frames),
+                    grid=grid,
+                    times_ns=np.array([snaps[k][0] for k in group], dtype=np.float64),
+                    snapshot_indices=list(group),
+                    species=species,
+                    run=run,
+                    event=event,
+                )
+            )
+
+        current_cell: float | None = None
+        for k, (_, cell) in snaps.items():
+            if group and cell != current_cell:
+                flush()
+                group = []
+            group.append(k)
+            current_cell = cell
+        if group:
+            flush()
+        return periods
 
     def __repr__(self) -> str:
         return (
