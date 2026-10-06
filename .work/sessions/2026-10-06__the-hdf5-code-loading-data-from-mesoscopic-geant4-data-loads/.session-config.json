@@ -84,6 +84,30 @@
         "ticket": "01-dense-grid-snapshot",
         "commit": "477d76d"
       }
+    },
+    {
+      "at": "2026-10-06T17:29:15.594Z",
+      "event": "ticket_started",
+      "phase": "ship",
+      "files": [
+        "02-plan/tickets/02-read-dense-periods.md",
+        "03-implement/02-read-dense-periods/commit-log.md"
+      ],
+      "detail": {
+        "ticket": "02-read-dense-periods"
+      }
+    },
+    {
+      "at": "2026-10-06T17:30:36.294Z",
+      "event": "ticket_done",
+      "phase": "ship",
+      "files": [
+        "03-implement/02-read-dense-periods/commit-log.md"
+      ],
+      "detail": {
+        "ticket": "02-read-dense-periods",
+        "commit": "750e67c"
+      }
     }
   ],
   "current_phase": "ship",
