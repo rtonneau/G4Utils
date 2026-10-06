@@ -10,7 +10,7 @@ The file layout mirrors what the C++ writer produces; the format source is
 - ``/run_log``: float64 ``(N, 4)``, rows ``[unix_timestamp, primaries, runtime_s, subrun_id]``,
   with a ``columns`` string attribute.
 
-Also: ``make_dump``, a factory for synthetic dnachem-min Dumps (Manifest.json +
+Also: ``write_species_meso_spatial`` (SpeciesMesoSpatial.h5 files), ``make_dump``, a factory for synthetic dnachem-min Dumps (Manifest.json +
 Geant4 wcsv ntuple CSVs) used by the DnaChem tests.
 """
 
@@ -243,3 +243,65 @@ def make_dump():
         return d
 
     return _make_dump
+
+
+# ═════════════════════════════════════════════════════════════════════════════
+#  SpeciesMesoSpatial.h5
+# ═════════════════════════════════════════════════════════════════════════════
+
+MESO_SPECIES = ("H3O^1", "°OH^0", "e_aq^-1")
+
+
+def write_species_meso_spatial(
+    path,
+    *,
+    species: Sequence[str] = MESO_SPECIES,
+    format_version: int | None = 2,
+    with_species: bool = True,
+) -> Path:
+    """Write a SpeciesMesoSpatial.h5 file.
+
+    Runs 0 and 2, each with events 0, 2 and 10 (to check numeric sorting).
+    run0/event0 has snapshots 0, 1, 2 and 10: snapshot1 hard-links the datasets
+    of snapshot0 and snapshot2 has N = 0. Other events hold a single snapshot.
+    """
+    path = Path(path)
+    s = len(species)
+    with h5py.File(path, "w") as f:
+        if with_species:
+            f.attrs.create("species", list(species), dtype=h5py.string_dtype())
+        if format_version is not None:
+            f.attrs["formatVersion"] = np.int32(format_version)
+        _write_str_attr(f, "units", "positions nm, times ns, counts molecules")
+
+        def make(group, k, n, time_ns, cell, seed):
+            g = group.create_group(f"snapshot{k}")
+            g.attrs["time_ns"] = np.float64(time_ns)
+            g.attrs["cellSize_nm"] = np.float64(cell)
+            rng = np.random.default_rng(seed)
+            g.create_dataset("position_nm", data=rng.random((n, 3)) * 100.0)
+            g.create_dataset(
+                "counts", data=rng.integers(1, 9, size=(n, s)).astype(np.uint32)
+            )
+            return g
+
+        for run in (0, 2):
+            for ev in (0, 2, 10):
+                eg = f.create_group(f"run{run}/event{ev}")
+                if run == 0 and ev == 0:
+                    s0 = make(eg, 0, 4, 5.0, 6.25, 1)
+                    s1 = eg.create_group("snapshot1")
+                    s1.attrs["time_ns"] = np.float64(6.3)
+                    s1.attrs["cellSize_nm"] = np.float64(6.25)
+                    s1["position_nm"] = s0["position_nm"]
+                    s1["counts"] = s0["counts"]
+                    make(eg, 2, 0, 8.0, 12.5, 2)
+                    make(eg, 10, 3, 100.0, 25.0, 3)
+                else:
+                    make(eg, 0, 2, 5.0, 6.25, 10 * run + ev)
+    return path
+
+
+@pytest.fixture
+def species_meso_spatial_file(tmp_path) -> Path:
+    return write_species_meso_spatial(tmp_path / "SpeciesMesoSpatial.h5")
