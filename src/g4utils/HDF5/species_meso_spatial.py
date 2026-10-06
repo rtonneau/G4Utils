@@ -3,7 +3,7 @@ from __future__ import annotations
 import re
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Iterator
+from typing import Iterator, NamedTuple
 
 import h5py
 import numpy as np
@@ -112,6 +112,153 @@ class MesoSpatialSnapshot:
             counts = self.counts[:, cols]
 
         return concentration_M(counts, self.cell_size_nm)
+
+
+# Off-lattice tolerance, as a fraction of a cell, and slack used when growing
+# a lattice by whole cells so float noise does not add a spurious cell.
+_LATTICE_TOL = 1e-3
+_EDGE_EPS = 1e-6
+
+
+class _DenseGrid(NamedTuple):
+    """
+    Dense lattice view of a sparse mesoscopic snapshot.
+
+    Attributes
+    ----------
+    origin_nm : numpy.ndarray
+        Lower corner (x, y, z) of the lattice, in nm, shape (3,).
+    cell_size_nm : float
+        Cell side, in nm.
+    dims : tuple[int, int, int]
+        Number of cells along (x, y, z), i.e. (nX, nY, nZ).
+    index : numpy.ndarray
+        Shape (nZ, nY, nX), int64: 1-based row number in the snapshot arrays
+        for occupied cells, 0 for unoccupied ones.
+    counts : numpy.ndarray
+        Shape (S, nZ, nY, nX), uint32: counts per species, 0 in unoccupied cells.
+    """
+
+    origin_nm: npt.NDArray[np.float64]
+    cell_size_nm: float
+    dims: tuple[int, int, int]
+    index: npt.NDArray[np.int64]
+    counts: npt.NDArray[np.uint32]
+
+
+def _densify_snapshot(
+    snapshot: MesoSpatialSnapshot,
+    extent: tuple[npt.ArrayLike, npt.ArrayLike] | None = None,
+) -> _DenseGrid:
+    """
+    Place the cells of a sparse snapshot on a dense regular lattice.
+
+    Without ``extent`` the lattice origin is ``min(centre) - cell_size / 2``
+    per axis and spans the occupied cells only. With ``extent =
+    (min_xyz_nm, max_xyz_nm)`` the lattice keeps the snapshot's anchor (the
+    origin it would have without extent) and grows by whole cells, on either
+    side, until it covers both the box and every cell. A snapshot without
+    cells needs an extent; its lattice is then anchored on ``min_xyz_nm``.
+
+    Cell ``i`` along an axis has its centre at ``origin + (i + 0.5) * cell_size``.
+
+    Parameters
+    ----------
+    snapshot : MesoSpatialSnapshot
+        Snapshot to densify.
+    extent : (array-like, array-like) or None
+        Physical box ``(min_xyz_nm, max_xyz_nm)`` in nm to cover.
+
+    Returns
+    -------
+    _DenseGrid
+        Origin (nm), cell size (nm), dims (nX, nY, nZ) and dense arrays in
+        (nZ, nY, nX) axis order, with 0 in unoccupied cells.
+
+    Raises
+    ------
+    ValueError
+        If the snapshot has no cells and no extent is given, if the extent is
+        malformed, if a centre is off the lattice by more than a small
+        tolerance, or if two cells fall in the same lattice index.
+    """
+    cs = float(snapshot.cell_size_nm)
+    if not cs > 0.0:
+        raise ValueError(f"cell_size_nm must be positive, got {cs}")
+    pos = np.asarray(snapshot.position_nm, dtype=np.float64).reshape(-1, 3)
+    n_cells = pos.shape[0]
+    counts = np.asarray(snapshot.counts)
+    if counts.ndim != 2 or counts.shape[0] != n_cells:
+        raise ValueError(
+            f"counts must have shape (N, S) with N={n_cells}, got {counts.shape}"
+        )
+    n_species = counts.shape[1]
+
+    box_min = box_max = None
+    if extent is not None:
+        box_min = np.asarray(extent[0], dtype=np.float64).reshape(-1)
+        box_max = np.asarray(extent[1], dtype=np.float64).reshape(-1)
+        if box_min.shape != (3,) or box_max.shape != (3,):
+            raise ValueError("extent must be (min_xyz_nm, max_xyz_nm), each of length 3")
+        if not (np.all(np.isfinite(box_min)) and np.all(np.isfinite(box_max))):
+            raise ValueError("extent must be finite")
+        if np.any(box_max < box_min):
+            raise ValueError(f"extent max {box_max} is below min {box_min}")
+
+    if n_cells == 0 and extent is None:
+        raise ValueError("Snapshot has no cells and no extent was given")
+
+    if n_cells:
+        anchor = pos.min(axis=0) - 0.5 * cs
+        frac = (pos - anchor) / cs - 0.5
+        ijk_all = np.rint(frac)
+        off = np.abs(frac - ijk_all)
+        if np.any(off > _LATTICE_TOL):
+            row = int(np.argmax(off.max(axis=1)))
+            raise ValueError(
+                f"Cell {row} at {pos[row].tolist()} nm is off the lattice "
+                f"(cell size {cs} nm, anchor {anchor.tolist()} nm): "
+                f"{off[row].max():.3g} cell(s) from the nearest site"
+            )
+        ijk_all = ijk_all.astype(np.int64)
+        lo = np.zeros(3, dtype=np.int64)
+        hi = ijk_all.max(axis=0) + 1
+    else:
+        assert box_min is not None
+        anchor = box_min
+        ijk_all = np.zeros((0, 3), dtype=np.int64)
+        lo = np.zeros(3, dtype=np.int64)
+        hi = np.zeros(3, dtype=np.int64)
+
+    if box_min is not None and box_max is not None:
+        lo = np.minimum(lo, np.floor((box_min - anchor) / cs + _EDGE_EPS).astype(np.int64))
+        hi = np.maximum(hi, np.ceil((box_max - anchor) / cs - _EDGE_EPS).astype(np.int64))
+    # A zero-width box still yields one cell per axis.
+    hi = np.maximum(hi, lo + 1)
+
+    origin = anchor + lo * cs
+    ijk = ijk_all - lo
+    dims = tuple(int(v) for v in (hi - lo))
+    nx, ny, nz = dims
+
+    index = np.zeros((nz, ny, nx), dtype=np.int64)
+    dense = np.zeros((n_species, nz, ny, nx), dtype=np.uint32)
+    if n_cells:
+        flat = (ijk[:, 2] * ny + ijk[:, 1]) * nx + ijk[:, 0]
+        order = np.argsort(flat, kind="stable")
+        dup = np.nonzero(flat[order][1:] == flat[order][:-1])[0]
+        if dup.size:
+            a, b = int(order[dup[0]]), int(order[dup[0] + 1])
+            raise ValueError(
+                f"Cells {a} and {b} share lattice index "
+                f"(x, y, z) = {tuple(int(v) for v in ijk_all[a])} "
+                f"(centres {pos[a].tolist()} and {pos[b].tolist()} nm)"
+            )
+        index.reshape(-1)[flat] = np.arange(1, n_cells + 1, dtype=np.int64)
+        for s in range(n_species):
+            dense[s].reshape(-1)[flat] = counts[:, s]
+
+    return _DenseGrid(origin, cs, dims, index, dense)
 
 
 class SpeciesMesoSpatialFile:
