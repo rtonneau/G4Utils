@@ -1,0 +1,82 @@
+{
+  "session_id": "2026-10-01__importerror-load_species-from-g4utils.dnachem",
+  "feature_name": "ImportError load_species from g4utils.DnaChem",
+  "scratch_dir": ".scratch/tests/2026-10-01__importerror-load_species-from-g4utils.dnachem",
+  "created_at": "2026-10-01T13:53:41.778Z",
+  "template_version": 2,
+  "history": [
+    {
+      "at": "2026-10-01T13:53:41.778Z",
+      "event": "session_started",
+      "phase": "grill",
+      "files": [
+        "01-grill/resume.md"
+      ],
+      "detail": {
+        "kind": "issue"
+      }
+    },
+    {
+      "at": "2026-10-01T14:02:09.765Z",
+      "event": "issue_created",
+      "phase": "grill",
+      "files": [
+        "01-grill/resume.md"
+      ],
+      "detail": {
+        "number": 2,
+        "url": "https://github.com/rtonneau/G4Utils/issues/2"
+      }
+    },
+    {
+      "at": "2026-10-01T14:02:09.775Z",
+      "event": "grill_written",
+      "phase": "plan-not-started",
+      "files": [
+        "01-grill/resume.md"
+      ]
+    },
+    {
+      "at": "2026-10-01T14:03:04.906Z",
+      "event": "issue_commented",
+      "phase": "plan-not-started",
+      "detail": {
+        "number": 2
+      }
+    },
+    {
+      "at": "2026-10-01T14:03:06.597Z",
+      "event": "issue_closed",
+      "phase": "plan-not-started",
+      "detail": {
+        "number": 2
+      }
+    },
+    {
+      "at": "2026-10-01T14:03:06.599Z",
+      "event": "session_finished",
+      "phase": "finished",
+      "files": [
+        "INDEX.md"
+      ]
+    }
+  ],
+  "kind": "issue",
+  "usage": {
+    "grill": {
+      "startedAt": "2026-10-01T13:53:41.783Z",
+      "sessionIds": [
+        "e152e318-5c83-4bd1-abe3-90fdee71c817"
+      ]
+    }
+  },
+  "current_phase": "finished",
+  "issue": {
+    "number": 2,
+    "url": "https://github.com/rtonneau/G4Utils/issues/2",
+    "created_at": "2026-10-01T14:02:09.765Z",
+    "commented": true,
+    "closed": true
+  },
+  "finished_at": "2026-10-01T14:03:06.599Z"
+}

@@ -1,0 +1,34 @@
+2026-10-01 12:33:30	b54da65e-5af7-4ec7-ae78-8659b60834fb	main	Bash	C:/Users/rtonneau/.claude/plugins/cache/grill-plan-ship/grill-plan-ship/1.12.0/skills/gps/references/start.md (bash)	41	4392
+2026-10-01 12:34:03	b54da65e-5af7-4ec7-ae78-8659b60834fb	main	Bash	C:/Users/rtonneau/DEV/PYTHON/G4Utils/pyproject.toml, C:/Users/rtonneau/DEV/PYTHON/G4Utils/src/g4utils/__init__.py (bash)	146	4926
+2026-10-01 12:42:45	a1451da0-913d-4af2-9a67-ce68cd8f1c93	main	Bash	C:/Users/rtonneau/.claude/plugins/cache/grill-plan-ship/grill-plan-ship/1.12.0/skills/gps/references/auto.md (bash)	19	2428
+2026-10-01 12:42:49	a1451da0-913d-4af2-9a67-ce68cd8f1c93	main	Bash	C:/Users/rtonneau/.claude/plugins/cache/grill-plan-ship/grill-plan-ship/1.12.0/skills/gps/references/write.md (bash)	59	3215
+2026-10-01 12:43:14	a1451da0-913d-4af2-9a67-ce68cd8f1c93	main	Bash	C:/Users/rtonneau/.claude/plugins/cache/grill-plan-ship/grill-plan-ship/1.12.0/skills/gps/references/plan.md (bash)	30	2538
+2026-10-01 12:43:23	a1451da0-913d-4af2-9a67-ce68cd8f1c93	main	Bash	C:/Users/rtonneau/DEV/PYTHON/G4Utils/src/g4utils/Vox/__init__.py, C:/Users/rtonneau/DEV/PYTHON/G4Utils/src/g4utils/HDF5/shared.py, C:/Users/rtonneau/DEV/PYTHON/G4Utils/.github/workflows/ci.yml, C:/Users/rtonneau/DEV/PYTHON/G4Utils/README.md, C:/Users/rtonneau/DEV/PYTHON/G4Utils/.work/gps-config.json (bash)	160	3846
+2026-10-01 12:44:55	a1451da0-913d-4af2-9a67-ce68cd8f1c93	main	Bash	C:/Users/rtonneau/.claude/plugins/cache/grill-plan-ship/grill-plan-ship/1.12.0/skills/gps/references/ship.md (bash)	49	9814
+2026-10-01 12:45:10	a1451da0-913d-4af2-9a67-ce68cd8f1c93	general-purpose	Read	C:/Users/rtonneau/DEV/PYTHON/G4Utils/.work/sessions/2026-10-01__dnachem-run-loader/02-plan/tickets/01-ntuple-reader.md	39	3135
+2026-10-01 12:45:11	a1451da0-913d-4af2-9a67-ce68cd8f1c93	general-purpose	Bash	C:/Users/rtonneau/DEV/PYTHON/G4Utils/src/g4utils/HDF5/shared.py:1-60 (bash)	75	2742
+2026-10-01 12:45:36	f39e8f19-f318-425c-8677-e0406048569f	main	Bash	C:/Users/rtonneau/DEV/PYTHON/G4Utils/src/g4utils/DnaChem/ntuple.py, C:/Users/rtonneau/DEV/PYTHON/G4Utils/src/g4utils/DnaChem/species_names.py, C:/Users/rtonneau/DEV/PYTHON/G4Utils/src/g4utils/DnaChem/__init__.py, C:/Users/rtonneau/DEV/PYTHON/G4Utils/tests/conftest.py, C:/Users/rtonneau/DEV/PYTHON/G4Utils/tests/test_dnachem_ntuple.py (bash)	220	6401
+2026-10-01 12:45:43	f39e8f19-f318-425c-8677-e0406048569f	main	Bash	C:/Users/rtonneau/DEV/PYTHON/G4Utils/.work/sessions/2026-10-01__dnachem-run-loader/03-implement/01-ntuple-reader/commit-log.md (bash)	56	1242
+2026-10-01 12:46:06	f39e8f19-f318-425c-8677-e0406048569f	general-purpose	Read	C:/Users/rtonneau/DEV/PYTHON/G4Utils/.work/sessions/2026-10-01__dnachem-run-loader/02-plan/tickets/02-dumps-and-manifests.md	29	2609
+2026-10-01 12:46:07	f39e8f19-f318-425c-8677-e0406048569f	general-purpose	Bash	C:/Users/rtonneau/DEV/PYTHON/G4Utils/tests/conftest.py (bash)	118	3547
+2026-10-01 12:46:09	f39e8f19-f318-425c-8677-e0406048569f	general-purpose	Bash	C:/Users/rtonneau/DEV/PYTHON/G4Utils/src/g4utils/DnaChem/__init__.py, C:/Users/rtonneau/DEV/PYTHON/G4Utils/src/g4utils/DnaChem/ntuple.py (bash)	33	952
+2026-10-01 12:46:37	fbbbf15c-2c6a-40a3-b050-0b64297092d3	main	Bash	C:/Users/rtonneau/DEV/PYTHON/G4Utils/src/g4utils/DnaChem/dumps.py, C:/Users/rtonneau/DEV/PYTHON/G4Utils/src/g4utils/DnaChem/manifest.py (bash)	126	4259
+2026-10-01 12:47:15	fbbbf15c-2c6a-40a3-b050-0b64297092d3	general-purpose	Read	C:/Users/rtonneau/DEV/PYTHON/G4Utils/.work/sessions/2026-10-01__dnachem-run-loader/02-plan/tickets/03-species-reactions-loaders.md	27	2001
+2026-10-01 12:47:16	fbbbf15c-2c6a-40a3-b050-0b64297092d3	general-purpose	Bash	C:/Users/rtonneau/DEV/PYTHON/G4Utils/src/g4utils/DnaChem/ntuple.py, C:/Users/rtonneau/DEV/PYTHON/G4Utils/src/g4utils/DnaChem/species_names.py, C:/Users/rtonneau/DEV/PYTHON/G4Utils/src/g4utils/DnaChem/dumps.py, C:/Users/rtonneau/DEV/PYTHON/G4Utils/src/g4utils/DnaChem/manifest.py, C:/Users/rtonneau/DEV/PYTHON/G4Utils/src/g4utils/DnaChem/__init__.py, C:/Users/rtonneau/DEV/PYTHON/G4Utils/tests/conftest.py (bash)	294	8559
+2026-10-01 12:47:41	24edb2ce-e8ca-428f-9b37-8179ac527a08	main	Bash	C:/Users/rtonneau/DEV/PYTHON/G4Utils/src/g4utils/DnaChem/loaders.py (bash)	84	3014
+2026-10-01 12:48:12	24edb2ce-e8ca-428f-9b37-8179ac527a08	general-purpose	Read	C:/Users/rtonneau/DEV/PYTHON/G4Utils/.work/sessions/2026-10-01__dnachem-run-loader/02-plan/tickets/04-exports-docs.md	26	1384
+2026-10-01 12:48:25	24edb2ce-e8ca-428f-9b37-8179ac527a08	general-purpose	Read	C:/Users/rtonneau/DEV/PYTHON/G4Utils/src/g4utils/DnaChem/__init__.py	3	60
+2026-10-01 12:48:27	24edb2ce-e8ca-428f-9b37-8179ac527a08	general-purpose	Read	C:/Users/rtonneau/DEV/PYTHON/G4Utils/src/g4utils/DnaChem/ntuple.py	42	1195
+2026-10-01 12:48:29	24edb2ce-e8ca-428f-9b37-8179ac527a08	general-purpose	Read	C:/Users/rtonneau/DEV/PYTHON/G4Utils/src/g4utils/DnaChem/species_names.py	21	459
+2026-10-01 12:48:31	24edb2ce-e8ca-428f-9b37-8179ac527a08	general-purpose	Read	C:/Users/rtonneau/DEV/PYTHON/G4Utils/src/g4utils/DnaChem/dumps.py	52	1594
+2026-10-01 12:48:32	24edb2ce-e8ca-428f-9b37-8179ac527a08	general-purpose	Read	C:/Users/rtonneau/DEV/PYTHON/G4Utils/src/g4utils/DnaChem/manifest.py	63	2110
+2026-10-01 12:48:34	24edb2ce-e8ca-428f-9b37-8179ac527a08	general-purpose	Read	C:/Users/rtonneau/DEV/PYTHON/G4Utils/src/g4utils/DnaChem/loaders.py	75	2547
+2026-10-01 12:48:37	24edb2ce-e8ca-428f-9b37-8179ac527a08	general-purpose	Read	C:/Users/rtonneau/DEV/PYTHON/G4Utils/README.md	51	638
+2026-10-01 12:49:18	24edb2ce-e8ca-428f-9b37-8179ac527a08	general-purpose	Read	C:/Users/rtonneau/DEV/PYTHON/G4Utils/README.md:23-82	60	1957
+2026-10-01 12:49:20	24edb2ce-e8ca-428f-9b37-8179ac527a08	general-purpose	Read	C:/Users/rtonneau/DEV/PYTHON/G4Utils/src/g4utils/DnaChem/__init__.py	17	464
+2026-10-01 12:49:40	a6d8812c-1c13-4e62-8927-eaabfc91b40d	main	Bash	C:/Users/rtonneau/DEV/PYTHON/G4Utils/src/g4utils/DnaChem/__init__.py (bash)	101	3421
+2026-10-01 15:53:34	8010770e-3019-420e-801a-6650c86339dd	main	Bash	C:/Users/rtonneau/.claude/plugins/cache/grill-plan-ship/grill-plan-ship/1.13.0/skills/gps/references/issue.md (bash)	26	2200
+2026-10-01 16:06:31	763ef86e-81a1-4a2d-8ef3-836e0ef21589	main	Bash	C:/Users/rtonneau/DEV/PYTHON/G4Utils/CONTEXT.md (bash)	101	3669
+2026-10-01 16:06:37	763ef86e-81a1-4a2d-8ef3-836e0ef21589	main	Bash	C:/Users/rtonneau/DEV/PYTHON/G4Utils/tests/conftest.py, C:/Users/rtonneau/DEV/PYTHON/G4Utils/tests/conftest.py, C:/Users/rtonneau/DEV/PYTHON/G4Utils/tests/conftest.py (bash)	87	2163
+2026-10-01 16:06:55	763ef86e-81a1-4a2d-8ef3-836e0ef21589	main	Bash	C:/Users/rtonneau/DEV/PYTHON/G4Utils/src/g4utils/__init__.py (bash)	37	1056
+2026-10-01 16:07:00	763ef86e-81a1-4a2d-8ef3-836e0ef21589	main	Bash	C:/Users/rtonneau/DEV/PYTHON/G4Utils/README.md:5-13 (bash)	20	1134

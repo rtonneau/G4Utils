@@ -1,0 +1,212 @@
+{
+  "session_id": "2026-10-01__dnachem-run-loader",
+  "feature_name": "dnachem-run-loader",
+  "scratch_dir": ".scratch/tests/2026-10-01__dnachem-run-loader",
+  "created_at": "2026-10-01T10:33:35.163Z",
+  "template_version": 2,
+  "history": [
+    {
+      "at": "2026-10-01T10:33:35.163Z",
+      "event": "session_started",
+      "phase": "grill",
+      "files": [
+        "01-grill/resume.md"
+      ]
+    },
+    {
+      "at": "2026-10-01T10:42:49.143Z",
+      "event": "auto_started",
+      "phase": "grill",
+      "detail": {
+        "target": "finish",
+        "steps": "write:grill → plan → write:plan → ship → finish"
+      }
+    },
+    {
+      "at": "2026-10-01T10:43:14.696Z",
+      "event": "grill_written",
+      "phase": "plan-not-started",
+      "files": [
+        "01-grill/resume.md"
+      ]
+    },
+    {
+      "at": "2026-10-01T10:43:18.276Z",
+      "event": "plan_started",
+      "phase": "plan",
+      "files": [
+        "02-plan/plan.md"
+      ]
+    },
+    {
+      "at": "2026-10-01T10:44:55.587Z",
+      "event": "branch_created",
+      "phase": "plan",
+      "detail": {
+        "branch": "feat/dnachem-loaders",
+        "base": "main"
+      }
+    },
+    {
+      "at": "2026-10-01T10:44:55.611Z",
+      "event": "plan_written",
+      "phase": "ship",
+      "files": [
+        "02-plan/plan.md",
+        "02-plan/tickets/01-ntuple-reader.md",
+        "02-plan/tickets/02-dumps-and-manifests.md",
+        "02-plan/tickets/03-species-reactions-loaders.md",
+        "02-plan/tickets/04-exports-docs.md"
+      ],
+      "detail": {
+        "tickets": 4
+      }
+    },
+    {
+      "at": "2026-10-01T10:44:59.924Z",
+      "event": "ticket_started",
+      "phase": "ship",
+      "files": [
+        "02-plan/tickets/01-ntuple-reader.md",
+        "03-implement/01-ntuple-reader/commit-log.md"
+      ],
+      "detail": {
+        "ticket": "01-ntuple-reader"
+      }
+    },
+    {
+      "at": "2026-10-01T10:45:56.504Z",
+      "event": "ticket_done",
+      "phase": "ship",
+      "files": [
+        "03-implement/01-ntuple-reader/commit-log.md"
+      ],
+      "detail": {
+        "ticket": "01-ntuple-reader"
+      }
+    },
+    {
+      "at": "2026-10-01T10:45:56.626Z",
+      "event": "ticket_started",
+      "phase": "ship",
+      "files": [
+        "02-plan/tickets/02-dumps-and-manifests.md",
+        "03-implement/02-dumps-and-manifests/commit-log.md"
+      ],
+      "detail": {
+        "ticket": "02-dumps-and-manifests"
+      }
+    },
+    {
+      "at": "2026-10-01T10:47:04.733Z",
+      "event": "ticket_done",
+      "phase": "ship",
+      "files": [
+        "03-implement/02-dumps-and-manifests/commit-log.md"
+      ],
+      "detail": {
+        "ticket": "02-dumps-and-manifests"
+      }
+    },
+    {
+      "at": "2026-10-01T10:47:04.843Z",
+      "event": "ticket_started",
+      "phase": "ship",
+      "files": [
+        "02-plan/tickets/03-species-reactions-loaders.md",
+        "03-implement/03-species-reactions-loaders/commit-log.md"
+      ],
+      "detail": {
+        "ticket": "03-species-reactions-loaders"
+      }
+    },
+    {
+      "at": "2026-10-01T10:47:58.957Z",
+      "event": "ticket_done",
+      "phase": "ship",
+      "files": [
+        "03-implement/03-species-reactions-loaders/commit-log.md"
+      ],
+      "detail": {
+        "ticket": "03-species-reactions-loaders"
+      }
+    },
+    {
+      "at": "2026-10-01T10:47:59.062Z",
+      "event": "ticket_started",
+      "phase": "ship",
+      "files": [
+        "02-plan/tickets/04-exports-docs.md",
+        "03-implement/04-exports-docs/commit-log.md"
+      ],
+      "detail": {
+        "ticket": "04-exports-docs"
+      }
+    },
+    {
+      "at": "2026-10-01T10:49:58.820Z",
+      "event": "ticket_done",
+      "phase": "finish-pending",
+      "files": [
+        "03-implement/04-exports-docs/commit-log.md"
+      ],
+      "detail": {
+        "ticket": "04-exports-docs"
+      }
+    },
+    {
+      "at": "2026-10-01T10:50:04.401Z",
+      "event": "session_finished",
+      "phase": "finished",
+      "files": [
+        "INDEX.md"
+      ]
+    }
+  ],
+  "usage": {
+    "grill": {
+      "startedAt": "2026-10-01T10:33:35.169Z",
+      "sessionIds": [
+        "e152e318-5c83-4bd1-abe3-90fdee71c817"
+      ]
+    },
+    "plan": {
+      "startedAt": "2026-10-01T10:43:18.272Z",
+      "sessionIds": [
+        "e152e318-5c83-4bd1-abe3-90fdee71c817"
+      ]
+    },
+    "03-01-ntuple-reader": {
+      "startedAt": "2026-10-01T10:44:59.912Z",
+      "sessionIds": [
+        "e152e318-5c83-4bd1-abe3-90fdee71c817"
+      ]
+    },
+    "03-02-dumps-and-manifests": {
+      "startedAt": "2026-10-01T10:45:56.615Z",
+      "sessionIds": [
+        "e152e318-5c83-4bd1-abe3-90fdee71c817"
+      ]
+    },
+    "03-03-species-reactions-loaders": {
+      "startedAt": "2026-10-01T10:47:04.832Z",
+      "sessionIds": [
+        "e152e318-5c83-4bd1-abe3-90fdee71c817"
+      ]
+    },
+    "03-04-exports-docs": {
+      "startedAt": "2026-10-01T10:47:59.051Z",
+      "sessionIds": [
+        "e152e318-5c83-4bd1-abe3-90fdee71c817"
+      ]
+    }
+  },
+  "current_phase": "finished",
+  "git": {
+    "branch": "feat/dnachem-loaders",
+    "base_branch": "main",
+    "branch_created_at": "2026-10-01T10:44:55.587Z",
+    "pr_url": null
+  },
+  "finished_at": "2026-10-01T10:50:04.401Z"
+}
