@@ -9,7 +9,7 @@ G4Utils reads the HDF5 voxel output written by the G4Vox library (`HDF5Writer`) 
 - **Snapshot3D**: One group per subrun, each holding 3D scored quantities (e.g., dose or energy deposit).
 - **Extendable4D**: One 4D dataset per quantity, with subruns stacked along the first axis (one slice per subrun). Subrun IDs come from the run log's `subrun_id` column; if the run log is missing, has a different row count than the slices, or contains duplicate IDs, a `UserWarning` is emitted and slice indices `0..N-1` are used instead.
 
-The package provides lazy per-subrun loading, quantity/subrun selection, sums over subruns, and export to VTI/PVD for visualization in ParaView. It also loads the chemistry output of the Geant4-DNA dnachem-min application (species and reaction tallies with G-values; see [DnaChem](#dnachem-loading-dnachem-min-output)). Terminology (subrun ID, slice index, layout, quantity, Dump, Manifest, G-value) is defined in [CONTEXT.md](CONTEXT.md).
+The package provides lazy per-subrun loading, quantity/subrun selection, sums over subruns, and export to VTI/PVD for visualization in ParaView. It also loads the chemistry output of the Geant4-DNA dnachem-min application (species and reaction tallies with G-values; see [DnaChem](#dnachem-loading-dnachem-min-output)), and reads its mesoscopic spatial output (see [SpeciesMesoSpatial](#speciesmesospatial-reading-the-mesoscopic-spatial-state)). Terminology (subrun ID, slice index, layout, quantity, Dump, Manifest, G-value) is defined in [CONTEXT.md](CONTEXT.md).
 
 ## Installation
 
@@ -225,6 +225,34 @@ merged = reactions_data.merge(df, on="reactionId")
 - `find_dumps()`: locate Dump folders by Manifest.json
 - `read_ntuple()`: parse Geant4 wcsv CSV ntuples
 - `short_name()` / `SHORT_NAMES`: map raw species names to short labels
+
+## SpeciesMesoSpatial: reading the mesoscopic spatial state
+
+dnachem-min writes `SpeciesMesoSpatial.h5` when a macro sets `/chem/meso/spatialOutput true`: for each run, event and record time, the occupied cells of the mesoscopic mesh with their molecule counts per species. `g4utils.HDF5.SpeciesMesoSpatialFile` reads one such file lazily. It indexes runs, events and snapshots when opened and reads the arrays of a snapshot only on request. It reads a single file: it does not look for it inside a Dump.
+
+```python
+from g4utils.HDF5 import SpeciesMesoSpatialFile
+
+f = SpeciesMesoSpatialFile("SpeciesMesoSpatial.h5")
+print(f.species, f.format_version, f.runs)
+
+run = f.runs[0]
+event = f.events(run)[0]
+last = f.snapshot_indices(run, event)[-1]
+
+snap = f.read_snapshot(run, event, last)
+print(snap.time_ns, snap.cell_size_nm)   # cell size grows with time
+print(snap.position_nm.shape)            # (N, 3), nm
+print(snap.counts.shape)                 # (N, S), molecules
+
+conc = snap.concentration_M()            # mol/L, (N, S)
+oh = snap.concentration_M(["°OH^0"])     # selected species only
+
+for s in f.iter_snapshots(run=run, event=event):
+    ...
+```
+
+Species names are the raw Geant4 display names stored in the file. `concentration_M(counts, cell_size_nm)` is also available as a function. The file format is described in the dnachem-min documentation (`docs/output/SpeciesMesoSpatial-h5.md`).
 
 ## Development
 
