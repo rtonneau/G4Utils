@@ -27,3 +27,5 @@
 2026-10-06 12:49:56	45798d8d-107d-4b72-bdc0-a98bdc34e6f8	main	Bash	C:/DEV/python/G4Utils/pyproject.toml, C:/DEV/python/G4Utils/src/g4utils/__init__.py, C:/DEV/python/G4Utils/.work/gps-config.json (bash)	220	30000
 2026-10-06 12:50:01	45798d8d-107d-4b72-bdc0-a98bdc34e6f8	main	Bash	C:/DEV/python/G4Utils/.work/gps-config.json (bash)	37	4994
 2026-10-06 12:50:08	45798d8d-107d-4b72-bdc0-a98bdc34e6f8	main	Bash	C:/Users/rtonneau/.claude/plugins/cache/grill-plan-ship/grill-plan-ship/2.6.0/skills/gps/scripts/lib/version-files.js (bash)	120	4025
+2026-10-06 12:51:39	a64ee99a-d3d3-4482-aadf-a46997cdea64	main	Bash	C:/DEV/python/G4Utils/.gitignore (bash)	15	586
+2026-10-06 12:53:55	e5ce1531-2e16-4476-ab2b-7541c3ba60a6	main	Read	C:/Users/rtonneau/.claude/plugins/cache/grill-plan-ship/grill-plan-ship/2.6.0/skills/gps/references/release.md	12	1336
