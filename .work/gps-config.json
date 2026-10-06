@@ -3,5 +3,10 @@
   "github": {
     "enabled": true,
     "detected_at": "2026-10-01T08:27:50.653Z"
+  },
+  "release": {
+    "versionFiles": [
+      "pyproject.toml"
+    ]
   }
 }
