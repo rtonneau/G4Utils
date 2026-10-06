@@ -84,6 +84,30 @@
         "ticket": "01-reader-core",
         "commit": "2222371"
       }
+    },
+    {
+      "at": "2026-10-06T16:00:11.048Z",
+      "event": "ticket_started",
+      "phase": "ship",
+      "files": [
+        "02-plan/tickets/02-concentration.md",
+        "03-implement/02-concentration/commit-log.md"
+      ],
+      "detail": {
+        "ticket": "02-concentration"
+      }
+    },
+    {
+      "at": "2026-10-06T16:02:21.681Z",
+      "event": "ticket_done",
+      "phase": "ship",
+      "files": [
+        "03-implement/02-concentration/commit-log.md"
+      ],
+      "detail": {
+        "ticket": "02-concentration",
+        "commit": "2e1cd94"
+      }
     }
   ],
   "current_phase": "ship",
