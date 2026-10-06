@@ -521,6 +521,91 @@ class SpeciesMesoSpatialFile:
                 for k in snaps:
                     yield self.read_snapshot(r, e, k)
 
+    def to_vti_timeseries(
+        self,
+        run: int,
+        event: int,
+        path: str | Path,
+        species: list[str] | None = None,
+        dtype: npt.DTypeLike = np.float32,
+        extent: tuple[npt.ArrayLike, npt.ArrayLike] | None = None,
+        *,
+        encoding: Literal["binary", "ascii"] = "binary",
+        compress: bool = False,
+    ) -> Path:
+        """
+        Write all snapshots of an event as a VTI time series with a .pvd.
+
+        Writes ``<stem>_<index:04d>.vti`` next to ``path`` (``index`` is the
+        snapshot index) and a ``.pvd`` collection whose timestep is
+        ``time_ns``. All frames cover the same physical box, in nm: the
+        common box of every cell of the event (cell centres +/- half a cell)
+        unless ``extent`` is given. Each frame uses its own cell size as
+        spacing. Snapshots are read one at a time (first pass keeps only
+        bounds, second pass writes).
+
+        Parameters
+        ----------
+        run, event : int
+            Run and event numbers.
+        path : str or Path
+            Output ``.pvd`` path (suffix forced to ``.pvd``).
+        species, dtype, extent, encoding, compress
+            See :meth:`MesoSpatialSnapshot.to_vti`.
+
+        Returns
+        -------
+        Path
+            The written ``.pvd`` file.
+
+        Raises
+        ------
+        KeyError
+            If the run or event is unknown, or a species name is unknown.
+        ValueError
+            If no snapshot of the event has an occupied cell and no extent
+            is given.
+        """
+        from g4utils.HDF5.vti_export import write_pvd_collection
+
+        indices = self.snapshot_indices(run, event)
+        pvd_path = Path(path)
+        if pvd_path.suffix.lower() != ".pvd":
+            pvd_path = pvd_path.with_suffix(".pvd")
+
+        if extent is None:
+            lo = hi = None
+            for k in indices:
+                snap = self.read_snapshot(run, event, k)
+                if snap.position_nm.shape[0] == 0:
+                    continue
+                half = 0.5 * float(snap.cell_size_nm)
+                s_lo = snap.position_nm.min(axis=0) - half
+                s_hi = snap.position_nm.max(axis=0) + half
+                lo = s_lo if lo is None else np.minimum(lo, s_lo)
+                hi = s_hi if hi is None else np.maximum(hi, s_hi)
+            if lo is None or hi is None:
+                raise ValueError(
+                    f"No occupied cells in any snapshot of run {run}, event {event}"
+                )
+            extent = (lo, hi)
+
+        stem = pvd_path.stem
+        datasets: list[tuple[float, str]] = []
+        for k in indices:
+            snap = self.read_snapshot(run, event, k)
+            frame_name = f"{stem}_{k:04d}.vti"
+            snap.to_vti(
+                pvd_path.parent / frame_name,
+                species,
+                dtype,
+                extent,
+                encoding=encoding,
+                compress=compress,
+            )
+            datasets.append((snap.time_ns, frame_name))
+        return write_pvd_collection(pvd_path, datasets)
+
     def __repr__(self) -> str:
         return (
             f"SpeciesMesoSpatialFile({str(self.path)!r}, "

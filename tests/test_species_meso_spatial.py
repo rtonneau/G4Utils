@@ -243,3 +243,92 @@ def test_densify_real_file_empty_snapshot(species_meso_spatial_file):
     g = _densify_snapshot(e, extent=([0, 0, 0], [25, 25, 25]))
     assert g.dims == (2, 2, 2) and g.cell_size_nm == e.cell_size_nm
     assert g.counts.shape == (len(MESO_SPECIES), 2, 2, 2)
+
+
+# ---------------------------------------------------------------------------
+# to_vti_timeseries
+# ---------------------------------------------------------------------------
+def _vti_geometry(path):
+    import xml.etree.ElementTree as ET
+
+    img = ET.parse(path).getroot().find("ImageData")
+    return (
+        np.array(img.get("Origin").split(), dtype=float),
+        np.array(img.get("Spacing").split(), dtype=float),
+        np.array(img.get("WholeExtent").split(), dtype=int)[1::2],
+    )
+
+
+def _lattice_file(tmp_path):
+    """Event with lattice-aligned cells; cell size doubles between frames."""
+    path = tmp_path / "lattice.h5"
+    with h5py.File(path, "w") as f:
+        f.attrs.create("species", ["A", "B", "C"], dtype=h5py.string_dtype())
+        f.attrs["formatVersion"] = np.int32(2)
+        eg = f.create_group("run0/event0")
+        frames = [
+            (0, 1.0, 10.0, [[5, 5, 5], [15, 5, 5]]),
+            (1, 2.0, 20.0, [[10, 10, 10], [30, 10, 10], [10, 30, 30]]),
+            (5, 3.0, 40.0, [[20, 20, 20]]),
+        ]
+        for k, t, cs, pos in frames:
+            g = eg.create_group(f"snapshot{k}")
+            g.attrs["time_ns"] = t
+            g.attrs["cellSize_nm"] = cs
+            g.create_dataset("position_nm", data=np.array(pos, dtype=float))
+            g.create_dataset("counts", data=np.ones((len(pos), 3), dtype=np.uint32))
+    return path
+
+
+def test_timeseries_files_pvd_and_common_box(tmp_path):
+    import xml.etree.ElementTree as ET
+
+    f = SpeciesMesoSpatialFile(_lattice_file(tmp_path))
+    pvd = f.to_vti_timeseries(0, 0, tmp_path / "out" / "ts.pvd")
+    assert pvd.name == "ts.pvd"
+    entries = [d.attrib for d in ET.parse(pvd).getroot().iter("DataSet")]
+    assert [e["file"] for e in entries] == [
+        "ts_0000.vti", "ts_0001.vti", "ts_0005.vti"
+    ]
+    assert [float(e["timestep"]) for e in entries] == [1.0, 2.0, 3.0]
+    lo = hi = None
+    for s in f.iter_snapshots(0, 0):
+        if len(s.position_nm):
+            a = s.position_nm.min(0) - s.cell_size_nm / 2
+            b = s.position_nm.max(0) + s.cell_size_nm / 2
+            lo = a if lo is None else np.minimum(lo, a)
+            hi = b if hi is None else np.maximum(hi, b)
+    for e, k in zip(entries, (0, 1, 5)):
+        origin, spacing, dims = _vti_geometry(pvd.parent / e["file"])
+        assert np.allclose(spacing, f.snapshot_cell_size_nm(0, 0, k))
+        end = origin + dims * spacing
+        assert np.all(origin <= lo + 1e-6) and np.all(end >= hi - 1e-6)
+        assert np.all(origin > lo - spacing - 1e-6) and np.all(end < hi + spacing + 1e-6)
+
+
+def test_timeseries_explicit_extent(tmp_path):
+    f = SpeciesMesoSpatialFile(_lattice_file(tmp_path))
+    pvd = f.to_vti_timeseries(0, 0, tmp_path / "ts", extent=([-50] * 3, [250] * 3))
+    assert pvd.suffix == ".pvd"
+    origin, spacing, dims = _vti_geometry(pvd.parent / "ts_0005.vti")
+    assert np.all(origin <= -50 + 1e-6)
+    assert np.all(origin + dims * spacing >= 250 - 1e-6)
+
+
+def test_timeseries_errors(species_meso_spatial_file, tmp_path):
+    f = SpeciesMesoSpatialFile(species_meso_spatial_file)
+    with pytest.raises(KeyError):
+        f.to_vti_timeseries(1, 0, tmp_path / "a.pvd")
+    with pytest.raises(KeyError):
+        f.to_vti_timeseries(0, 1, tmp_path / "a.pvd")
+    empty = tmp_path / "empty.h5"
+    with h5py.File(species_meso_spatial_file) as src, h5py.File(empty, "w") as dst:
+        for k, v in src.attrs.items():
+            dst.attrs[k] = v
+        g = dst.create_group("run0/event0/snapshot0")
+        g.attrs["time_ns"] = 1.0
+        g.attrs["cellSize_nm"] = 5.0
+        g.create_dataset("position_nm", data=np.zeros((0, 3)))
+        g.create_dataset("counts", data=np.zeros((0, 3), dtype=np.uint32))
+    with pytest.raises(ValueError):
+        SpeciesMesoSpatialFile(empty).to_vti_timeseries(0, 0, tmp_path / "e.pvd")
