@@ -1,0 +1,153 @@
+{
+  "session_id": "2026-10-06__dnachem-reactions-dataframe",
+  "feature_name": "dnachem-reactions-dataframe",
+  "scratch_dir": ".scratch/tests/2026-10-06__dnachem-reactions-dataframe",
+  "created_at": "2026-10-06T10:02:12.114Z",
+  "template_version": 2,
+  "history": [
+    {
+      "at": "2026-10-06T10:02:12.114Z",
+      "event": "session_started",
+      "phase": "grill",
+      "files": [
+        "01-grill/resume.md"
+      ]
+    },
+    {
+      "at": "2026-10-06T10:07:27.180Z",
+      "event": "auto_started",
+      "phase": "grill",
+      "detail": {
+        "target": "finish",
+        "steps": "write:grill → plan → write:plan → ship → finish"
+      }
+    },
+    {
+      "at": "2026-10-06T10:07:49.801Z",
+      "event": "grill_written",
+      "phase": "plan-not-started",
+      "files": [
+        "01-grill/resume.md"
+      ]
+    },
+    {
+      "at": "2026-10-06T10:07:49.956Z",
+      "event": "plan_started",
+      "phase": "plan",
+      "files": [
+        "02-plan/plan.md"
+      ]
+    },
+    {
+      "at": "2026-10-06T10:08:32.803Z",
+      "event": "branch_created",
+      "phase": "plan",
+      "detail": {
+        "branch": "feat/dnachem-reaction-table",
+        "base": "main"
+      }
+    },
+    {
+      "at": "2026-10-06T10:08:32.826Z",
+      "event": "plan_written",
+      "phase": "ship",
+      "files": [
+        "02-plan/plan.md",
+        "02-plan/tickets/01-reaction-table.md",
+        "02-plan/tickets/02-export-and-docs.md"
+      ],
+      "detail": {
+        "tickets": 2
+      }
+    },
+    {
+      "at": "2026-10-06T10:08:37.871Z",
+      "event": "ticket_started",
+      "phase": "ship",
+      "files": [
+        "02-plan/tickets/01-reaction-table.md",
+        "03-implement/01-reaction-table/commit-log.md"
+      ],
+      "detail": {
+        "ticket": "01-reaction-table"
+      }
+    },
+    {
+      "at": "2026-10-06T10:10:01.234Z",
+      "event": "ticket_done",
+      "phase": "ship",
+      "files": [
+        "03-implement/01-reaction-table/commit-log.md"
+      ],
+      "detail": {
+        "ticket": "01-reaction-table",
+        "commit": "2b63827"
+      }
+    },
+    {
+      "at": "2026-10-06T10:10:06.007Z",
+      "event": "ticket_started",
+      "phase": "ship",
+      "files": [
+        "02-plan/tickets/02-export-and-docs.md",
+        "03-implement/02-export-and-docs/commit-log.md"
+      ],
+      "detail": {
+        "ticket": "02-export-and-docs"
+      }
+    },
+    {
+      "at": "2026-10-06T10:11:34.033Z",
+      "event": "ticket_done",
+      "phase": "finish-pending",
+      "files": [
+        "03-implement/02-export-and-docs/commit-log.md"
+      ],
+      "detail": {
+        "ticket": "02-export-and-docs",
+        "commit": "5f354c4"
+      }
+    },
+    {
+      "at": "2026-10-06T10:11:50.835Z",
+      "event": "changelog_written",
+      "phase": "finish-pending",
+      "detail": {
+        "bump": "minor"
+      }
+    },
+    {
+      "at": "2026-10-06T10:11:56.697Z",
+      "event": "pr_opened",
+      "phase": "finish-pending",
+      "detail": {
+        "url": "https://github.com/rtonneau/G4Utils/pull/3"
+      }
+    },
+    {
+      "at": "2026-10-06T10:11:56.700Z",
+      "event": "session_finished",
+      "phase": "finished",
+      "files": [
+        "INDEX.md"
+      ]
+    }
+  ],
+  "current_phase": "finished",
+  "git": {
+    "branch": "feat/dnachem-reaction-table",
+    "base_branch": "main",
+    "branch_created_at": "2026-10-06T10:08:32.803Z",
+    "pr_url": "https://github.com/rtonneau/G4Utils/pull/3"
+  },
+  "ship_mode": "subagent+inline",
+  "changelog": {
+    "bump": "minor",
+    "floor": "minor",
+    "reason": null,
+    "bullets": 2,
+    "path": ".work/changelog/2026-10-06__dnachem-reactions-dataframe.md",
+    "written_at": "2026-10-06T10:11:50.826Z"
+  },
+  "finished_at": "2026-10-06T10:11:56.700Z"
+}

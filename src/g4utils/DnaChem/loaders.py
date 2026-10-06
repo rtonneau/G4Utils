@@ -73,3 +73,59 @@ def load_reactions(
 def _read_metadata(file: Path) -> pd.DataFrame:
     """Read ``ReactionsMetadata.csv`` (``reactionId,reaction``)."""
     return pd.read_csv(file, encoding="utf-8", keep_default_na=False)
+
+
+def _resolve_metadata_file(path: str | Path) -> Path:
+    """Return the ``ReactionsMetadata.csv`` for a file, a Dump or a lone-Dump root."""
+    root = Path(path)
+    if root.is_file():
+        return root
+    if (root / REACTIONS_METADATA_FILE).is_file():
+        return root / REACTIONS_METADATA_FILE
+    dumps = find_dumps(root)  # raises FileNotFoundError if none
+    if len(dumps) > 1:
+        raise ValueError(f"Expected a single Dump at {root}, found {len(dumps)}")
+    return _require(dumps[0] / REACTIONS_METADATA_FILE)
+
+
+def _split_side(side: str) -> tuple[str, ...]:
+    side = side.strip()
+    if side == "(no products)":
+        return ()
+    return tuple(short_name(s) for s in re.split(r"\s+\+\s+", side))
+
+
+def load_reaction_table(path: str | Path) -> pd.DataFrame:
+    """One row per reaction, with Short-name equation and species count columns."""
+    meta = _read_metadata(_resolve_metadata_file(path))
+    reactants: list[tuple[str, ...]] = []
+    products: list[tuple[str, ...]] = []
+    for raw in meta["reaction"]:
+        if "->" not in raw:
+            raise ValueError(f"Malformed reaction line (no '->'): {raw!r}")
+        left, right = raw.split("->", 1)
+        reactants.append(_split_side(left))
+        products.append(_split_side(right))
+
+    equation = [
+        f"{' + '.join(r)} -> {' + '.join(p) if p else '(no products)'}"
+        for r, p in zip(reactants, products)
+    ]
+    species = sorted({s for side in (*reactants, *products) for s in side})
+    wide = pd.DataFrame(
+        {
+            **{f"reactant_{x}": [r.count(x) for r in reactants] for x in species},
+            **{f"product_{x}": [p.count(x) for p in products] for x in species},
+        },
+        dtype=int,
+    )
+    head = pd.DataFrame(
+        {
+            "reactionId": meta["reactionId"].to_numpy(),
+            "reaction": meta["reaction"].to_numpy(),
+            "equation": equation,
+            "reactants": pd.Series(reactants, dtype=object),
+            "products": pd.Series(products, dtype=object),
+        }
+    )
+    return pd.concat([head, wide], axis=1)

@@ -190,6 +190,34 @@ g_by_time = df.pivot_table(
 
 **`load_reactions()`** similarly loads reaction data with reaction labels and timing.
 
+**`load_reaction_table()`** loads one row per reaction (from a single Dump) with reaction equations and stoichiometry columns. It accepts a Dump folder, a folder holding exactly one Dump, or the `ReactionsMetadata.csv` file itself; a folder with several Dumps raises `ValueError` (the reactions are the same across the Dumps of one setup). Returns a DataFrame with:
+- `reactionId`: numeric reaction identifier
+- `reaction`: raw reaction string from metadata
+- `equation`: reaction equation using Short names (e.g., `"OH + OH -> H2O2"`)
+- `reactants`, `products`: tuple of species involved on each side (Short names, no radical marks like `*`)
+- `reactant_<species>`, `product_<species>`: int stoichiometric counts, one pair for every species that appears in the file (0 where absent)
+
+Example usage:
+```python
+from g4utils.DnaChem import load_reaction_table
+
+df = load_reaction_table("path/to/Dump")
+
+# Filter reactions producing H2O2
+products_h2o2 = df[df["product_H2O2"] > 0]
+
+# Filter reactions consuming OH (reactant)
+consumes_oh = df[df["reactant_OH"] > 0]
+
+# Access charged species using quoted column names
+consumes_oh_minus = df[df["reactant_OH-"] > 0]
+
+# Join with reaction counts from load_reactions() on reactionId
+from g4utils.DnaChem import load_reactions
+reactions_data = load_reactions("path/to/parent")
+merged = reactions_data.merge(df, on="reactionId")
+```
+
 **`load_manifests()`** loads one row per run with Dump and run metadata.
 
 ### Other utilities
