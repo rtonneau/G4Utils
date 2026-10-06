@@ -84,6 +84,30 @@
         "ticket": "01-densify-meso-snapshot",
         "commit": "2e7efcb"
       }
+    },
+    {
+      "at": "2026-10-06T20:16:27.502Z",
+      "event": "ticket_started",
+      "phase": "ship",
+      "files": [
+        "02-plan/tickets/02-snapshot-to-vti.md",
+        "03-implement/02-snapshot-to-vti/commit-log.md"
+      ],
+      "detail": {
+        "ticket": "02-snapshot-to-vti"
+      }
+    },
+    {
+      "at": "2026-10-06T20:17:33.086Z",
+      "event": "ticket_done",
+      "phase": "ship",
+      "files": [
+        "03-implement/02-snapshot-to-vti/commit-log.md"
+      ],
+      "detail": {
+        "ticket": "02-snapshot-to-vti",
+        "commit": "95d5698"
+      }
     }
   ],
   "current_phase": "ship",
