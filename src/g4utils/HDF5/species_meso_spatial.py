@@ -43,6 +43,68 @@ def concentration_M(counts: npt.NDArray[np.uint32], cell_size_nm: float) -> npt.
     return np.asarray(counts, dtype=np.float64) / (_N_A * volume_L)
 
 
+@dataclass(frozen=True)
+class MesoGrid:
+    """
+    Geometry of a regular cubic grid in the world frame.
+
+    The lower corner of cell ``i`` along an axis is ``origin_nm + i * cell_size_nm``
+    and its centre is half a cell further.
+
+    Parameters
+    ----------
+    origin_nm : tuple[float, float, float]
+        Lower corner of cell (0, 0, 0), in nm.
+    cell_size_nm : float
+        Side of the cubic cells, in nm.
+    shape : tuple[int, int, int]
+        Number of cells along x, y and z.
+    """
+
+    origin_nm: tuple[float, float, float]
+    cell_size_nm: float
+    shape: tuple[int, int, int]
+
+    def index_of(self, position_nm: npt.ArrayLike) -> npt.NDArray[np.int64]:
+        """
+        Index of the cell containing each position.
+
+        Parameters
+        ----------
+        position_nm : array_like
+            Positions in nm, shape (..., 3).
+
+        Returns
+        -------
+        numpy.ndarray
+            Integer indices, shape (..., 3), int64. Positions outside the
+            grid give indices that are negative or >= ``shape``; no check is
+            made.
+        """
+        pos = np.asarray(position_nm, dtype=np.float64)
+        origin = np.asarray(self.origin_nm, dtype=np.float64)
+        return np.floor((pos - origin) / self.cell_size_nm).astype(np.int64)
+
+    def centers(self, axis: int) -> npt.NDArray[np.float64]:
+        """
+        Cell centres along one axis, in nm.
+
+        Parameters
+        ----------
+        axis : int
+            0 (x), 1 (y) or 2 (z).
+
+        Returns
+        -------
+        numpy.ndarray
+            Shape (shape[axis],), float64.
+        """
+        if axis not in (0, 1, 2):
+            raise ValueError(f"axis must be 0, 1 or 2, got {axis!r}")
+        i = np.arange(self.shape[axis], dtype=np.float64)
+        return self.origin_nm[axis] + (i + 0.5) * self.cell_size_nm
+
+
 @dataclass
 class MesoSpatialSnapshot:
     """
@@ -112,6 +174,116 @@ class MesoSpatialSnapshot:
             counts = self.counts[:, cols]
 
         return concentration_M(counts, self.cell_size_nm)
+
+    def to_dense(
+        self,
+        species: str,
+        bounds_nm: npt.ArrayLike | None = None,
+        concentration: bool = False,
+    ) -> tuple[npt.NDArray, MesoGrid]:
+        """
+        Rebuild a zero-filled 3D array of one species from the sparse rows.
+
+        Parameters
+        ----------
+        species : str
+            Species name (must be in ``self.species``).
+        bounds_nm : array_like or None
+            Extent to cover, ``[[xmin, xmax], [ymin, ymax], [zmin, zmax]]`` in
+            nm (world frame). It is snapped outwards to the cell lattice
+            (multiples of ``cell_size_nm``); cells outside it are dropped.
+            If None, the bounding box of all occupied cells of the snapshot
+            (whatever the species) is used.
+        concentration : bool
+            If True, return molar concentration (float64, mol/L) instead of
+            counts (uint32).
+
+        Returns
+        -------
+        (numpy.ndarray, MesoGrid)
+            Array of shape ``grid.shape`` and its grid. If the snapshot is
+            empty and ``bounds_nm`` is None, the shape is (0, 0, 0).
+
+        Raises
+        ------
+        KeyError
+            If the species is unknown.
+        """
+        if self.species is None:
+            raise KeyError("Snapshot has no species information")
+        try:
+            col = self.species.index(species)
+        except ValueError:
+            raise KeyError(f"Unknown species: {species}") from None
+
+        cell = self.cell_size_nm
+        pos = np.asarray(self.position_nm, dtype=np.float64).reshape(-1, 3)
+        # Cell index on the lattice of multiples of the cell size
+        lattice = np.floor(pos / cell).astype(np.int64)
+
+        if bounds_nm is None:
+            if len(lattice) == 0:
+                lo = np.zeros(3, dtype=np.int64)
+                hi = lo.copy()
+            else:
+                lo = lattice.min(axis=0)
+                hi = lattice.max(axis=0) + 1
+        else:
+            b = np.asarray(bounds_nm, dtype=np.float64)
+            if b.shape != (3, 2):
+                raise ValueError(f"bounds_nm must have shape (3, 2), got {b.shape}")
+            lo = np.floor(b[:, 0] / cell + 1e-9).astype(np.int64)
+            hi = np.maximum(np.ceil(b[:, 1] / cell - 1e-9).astype(np.int64), lo + 1)
+
+        shape = tuple(int(n) for n in hi - lo)
+        grid = MesoGrid(
+            origin_nm=tuple(float(v) for v in lo * cell),
+            cell_size_nm=cell,
+            shape=shape,  # type: ignore[arg-type]
+        )
+
+        dense = np.zeros(shape, dtype=np.uint32)
+        if len(lattice):
+            idx = lattice - lo
+            inside = np.all((idx >= 0) & (idx < np.asarray(shape)), axis=1)
+            idx = idx[inside]
+            np.add.at(
+                dense, (idx[:, 0], idx[:, 1], idx[:, 2]), self.counts[inside, col]
+            )
+
+        if concentration:
+            return concentration_M(dense, cell), grid
+        return dense, grid
+
+
+@dataclass
+class DenseMesoPeriod:
+    """
+    Dense time series of one species over a run of snapshots with one cell size.
+
+    Parameters
+    ----------
+    data : numpy.ndarray
+        Shape (T, nx, ny, nz); uint32 counts, or float64 molar concentration.
+    grid : MesoGrid
+        Geometry shared by every time step; ``grid.shape == data.shape[1:]``.
+    times_ns : numpy.ndarray
+        Record time of each step, shape (T,), float64, in ns.
+    snapshot_indices : list[int]
+        Snapshot index of each step.
+    species : str
+        Species name.
+    run, event : int
+        Run and event numbers.
+    """
+
+    data: npt.NDArray
+    grid: MesoGrid
+    times_ns: npt.NDArray[np.float64]
+    snapshot_indices: list[int]
+    species: str
+    run: int
+    event: int
 
 
 class SpeciesMesoSpatialFile:
@@ -297,6 +469,101 @@ class SpeciesMesoSpatialFile:
                     continue
                 for k in snaps:
                     yield self.read_snapshot(r, e, k)
+
+    def read_dense(
+        self,
+        run: int,
+        event: int,
+        species: str,
+        bounds_nm: npt.ArrayLike | None = None,
+        concentration: bool = False,
+    ) -> list[DenseMesoPeriod]:
+        """
+        Read one species of an event as dense 4D arrays, one per cell-size period.
+
+        Consecutive snapshots sharing the same ``cellSize_nm`` form a period; a
+        new period starts whenever the cell size changes. Snapshots are read
+        one at a time.
+
+        Parameters
+        ----------
+        run, event : int
+            Run and event numbers.
+        species : str
+            Species name (must be in :attr:`species`).
+        bounds_nm : array_like or None
+            Extent ``[[xmin, xmax], [ymin, ymax], [zmin, zmax]]`` in nm (world
+            frame), snapped outwards to each period's cell lattice. If None,
+            the bounding box of all occupied cells of the event (whatever the
+            species, all snapshots) is used. Two files given the same bounds
+            give identically shaped arrays for periods of equal cell size.
+        concentration : bool
+            If True, return molar concentration (float64) instead of counts
+            (uint32).
+
+        Returns
+        -------
+        list[DenseMesoPeriod]
+            One period per run of consecutive equal cell sizes, in snapshot
+            order; empty if the event has no snapshot.
+
+        Raises
+        ------
+        KeyError
+            If the run, event or species is unknown.
+        """
+        snaps = self._snapshots(run, event)
+        if species not in self._species:
+            raise KeyError(f"Unknown species: {species}")
+
+        if bounds_nm is None:
+            # First pass: bounding box of the occupied cells, in nm.
+            lo = np.full(3, np.inf)
+            hi = np.full(3, -np.inf)
+            for k, (_, cell) in snaps.items():
+                pos = self.read_snapshot(run, event, k).position_nm
+                if len(pos) == 0:
+                    continue
+                lattice = np.floor(pos / cell)
+                lo = np.minimum(lo, lattice.min(axis=0) * cell)
+                hi = np.maximum(hi, (lattice.max(axis=0) + 1) * cell)
+            if np.isfinite(lo).all():
+                bounds_nm = np.stack([lo, hi], axis=1)
+
+        periods: list[DenseMesoPeriod] = []
+        group: list[int] = []
+
+        def flush() -> None:
+            frames: list[npt.NDArray] = []
+            grid: MesoGrid | None = None
+            for k in group:
+                frame, grid = self.read_snapshot(run, event, k).to_dense(
+                    species, bounds_nm=bounds_nm, concentration=concentration
+                )
+                frames.append(frame)
+            assert grid is not None
+            periods.append(
+                DenseMesoPeriod(
+                    data=np.stack(frames),
+                    grid=grid,
+                    times_ns=np.array([snaps[k][0] for k in group], dtype=np.float64),
+                    snapshot_indices=list(group),
+                    species=species,
+                    run=run,
+                    event=event,
+                )
+            )
+
+        current_cell: float | None = None
+        for k, (_, cell) in snaps.items():
+            if group and cell != current_cell:
+                flush()
+                group = []
+            group.append(k)
+            current_cell = cell
+        if group:
+            flush()
+        return periods
 
     def __repr__(self) -> str:
         return (

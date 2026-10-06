@@ -254,6 +254,44 @@ for s in f.iter_snapshots(run=run, event=event):
 
 Species names are the raw Geant4 display names stored in the file. `concentration_M(counts, cell_size_nm)` is also available as a function. The file format is described in the dnachem-min documentation (`docs/output/SpeciesMesoSpatial-h5.md`).
 
+### Dense Time Series: `to_dense` and `read_dense`
+
+For analysis over time or to feed grids to other tools, convert sparse snapshots to dense 3D arrays. Two approaches:
+
+**Per-snapshot:** `MesoSpatialSnapshot.to_dense()` rebuilds one species as a zero-filled 3D array with a single snapshot:
+
+```python
+from g4utils.HDF5 import SpeciesMesoSpatialFile
+
+f = SpeciesMesoSpatialFile("SpeciesMesoSpatial.h5")
+snap = f.read_snapshot(run=0, event=0, index=0)
+
+# Rebuild OH as uint32 counts
+dense, grid = snap.to_dense("°OH^0")  # shape (nx, ny, nz)
+print(grid.origin_nm, grid.cell_size_nm, grid.shape)
+
+# Or as molar concentration
+dense_conc, grid = snap.to_dense("°OH^0", concentration=True)  # float64, mol/L
+```
+
+Optionally pass `bounds_nm` to define a fixed extent (snapped outwards to the cell lattice) for consistent array shapes across snapshots.
+
+**Time series:** `SpeciesMesoSpatialFile.read_dense()` reads all snapshots of one event as a 4D array grouped by cell-size period. Cell sizes often change between snapshots; this method groups consecutive equal sizes into one `DenseMesoPeriod`:
+
+```python
+periods = f.read_dense(run=0, event=0, species="°OH^0")
+
+for period in periods:
+    print(f"Cell size: {period.grid.cell_size_nm} nm, times: {period.times_ns}")
+    print(f"Data shape: {period.data.shape}")  # (T, nx, ny, nz)
+    print(f"Grid: {period.grid}")
+    # Process time series at constant cell size
+```
+
+Same options as `to_dense`: pass `bounds_nm` to lock the extent and `concentration=True` to get mol/L instead of counts.
+
+**Memory caveat:** Dense arrays can grow quickly. For a 100×100×100 grid with 10 snapshots, uint32 counts need ~40 MB; float64 concentrations need ~80 MB. Multi-period events duplicate data, so a 10-step event with cell-size changes can use several hundred MB. Reading a large file without specifying `bounds_nm` scans all snapshots once to find the union of occupied cells. Use `bounds_nm` when you know the region of interest.
+
 ## Development
 
 ### Setup
