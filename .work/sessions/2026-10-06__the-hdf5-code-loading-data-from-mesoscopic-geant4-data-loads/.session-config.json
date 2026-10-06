@@ -108,9 +108,33 @@
         "ticket": "02-read-dense-periods",
         "commit": "750e67c"
       }
+    },
+    {
+      "at": "2026-10-06T17:30:37.025Z",
+      "event": "ticket_started",
+      "phase": "ship",
+      "files": [
+        "02-plan/tickets/03-exports-readme.md",
+        "03-implement/03-exports-readme/commit-log.md"
+      ],
+      "detail": {
+        "ticket": "03-exports-readme"
+      }
+    },
+    {
+      "at": "2026-10-06T17:33:10.045Z",
+      "event": "ticket_done",
+      "phase": "finish-pending",
+      "files": [
+        "03-implement/03-exports-readme/commit-log.md"
+      ],
+      "detail": {
+        "ticket": "03-exports-readme",
+        "commit": "11a4397"
+      }
     }
   ],
-  "current_phase": "ship",
+  "current_phase": "finish-pending",
   "git": {
     "branch": "feat/meso-spatial-dense-grid",
     "base_branch": "main",
