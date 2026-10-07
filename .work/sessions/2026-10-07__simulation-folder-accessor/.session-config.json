@@ -85,6 +85,30 @@
         "ticket": "01-dump-class",
         "commit": "51c3396"
       }
+    },
+    {
+      "at": "2026-10-07T20:51:03.805Z",
+      "event": "ticket_started",
+      "phase": "ship",
+      "files": [
+        "02-plan/tickets/02-simulation-class.md",
+        "03-implement/02-simulation-class/commit-log.md"
+      ],
+      "detail": {
+        "ticket": "02-simulation-class"
+      }
+    },
+    {
+      "at": "2026-10-07T20:52:04.526Z",
+      "event": "ticket_done",
+      "phase": "ship",
+      "files": [
+        "03-implement/02-simulation-class/commit-log.md"
+      ],
+      "detail": {
+        "ticket": "02-simulation-class",
+        "commit": "c451e10"
+      }
     }
   ],
   "current_phase": "ship",
