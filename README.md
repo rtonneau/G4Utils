@@ -254,6 +254,19 @@ for s in f.iter_snapshots(run=run, event=event):
 
 Species names are the raw Geant4 display names stored in the file. `concentration_M(counts, cell_size_nm)` is also available as a function. The file format is described in the dnachem-min documentation (`docs/output/SpeciesMesoSpatial-h5.md`).
 
+### Export to VTI / PVD
+
+```python
+snap.to_vti("snap.vti", species=["°OH^0"])
+f.to_vti_timeseries(run, event, "oh/series.pvd", species=["°OH^0"])
+```
+
+The sparse cells are placed on a dense lattice and written as a VTK ImageData; unoccupied cells are 0. Origin and spacing are in nm. Each species gives two CellData arrays, `<species>_count` (molecules) and `<species>_M` (mol/L), named after the raw species names. `species=None` exports all species. `extent=(min_xyz_nm, max_xyz_nm)` makes the lattice cover that box (grown by whole cells).
+
+`to_vti_timeseries(run, event, path, ...)` writes `<stem>_<index>.vti` (snapshot index, 4 digits) and a `.pvd` whose timesteps are `time_ns`. By default all frames share the common physical box of every cell of the event; each frame uses its own cell size as spacing, so the grid gets coarser with time. Snapshots are read one at a time.
+
+Errors: `KeyError` for an unknown run, event or species; `ValueError` if the snapshot (or, for the time series, every snapshot of the event) has no occupied cell and no `extent` is given, if cells are off a common lattice or collide, or if `extent` is malformed.
+
 ### Dense Time Series: `to_dense` and `read_dense`
 
 For analysis over time or to feed grids to other tools, convert sparse snapshots to dense 3D arrays. Two approaches:

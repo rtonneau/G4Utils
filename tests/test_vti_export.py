@@ -348,3 +348,55 @@ def test_vtk_reader_reads_binary(tmp_path, compress, dtype):
     for name, arr in arrays.items():
         got = vtk_to_numpy(cell_data.GetArray(name)).reshape(nz, ny, nx)
         np.testing.assert_array_equal(got, arr)
+
+
+# ── MesoSpatialSnapshot.to_vti ───────────────────────────────────────────────
+
+
+def _meso_snapshot():
+    from g4utils.HDF5 import MesoSpatialSnapshot
+
+    pos = np.array([[5.0, 5.0, 5.0], [15.0, 5.0, 5.0], [5.0, 15.0, 25.0]])
+    counts = np.array([[1, 2], [3, 4], [5, 6]], dtype=np.uint32)
+    return MesoSpatialSnapshot(
+        run=0, event=0, index=0, time_ns=1.0, cell_size_nm=10.0,
+        position_nm=pos, counts=counts, species=["°OH^0", "H3O^1"],
+    )
+
+
+def test_meso_to_vti_round_trip(tmp_path):
+    snap = _meso_snapshot()
+    out = snap.to_vti(tmp_path / "meso.vti", dtype=np.float64)
+    assert out == tmp_path / "meso.vti"
+    root, arrays = decode_vti(out)
+    assert set(arrays) == {"°OH^0_count", "°OH^0_M", "H3O^1_count", "H3O^1_M"}
+    image = root.find("ImageData")
+    assert [float(v) for v in image.get("Origin").split()] == [0.0, 0.0, 0.0]
+    assert [float(v) for v in image.get("Spacing").split()] == [10.0, 10.0, 10.0]
+    assert image.get("WholeExtent") == "0 2 0 2 0 3"
+    conc = snap.concentration_M()
+    cells = [(0, 0, 0), (0, 0, 1), (2, 1, 0)]  # (z, y, x)
+    for row, (z, y, x) in enumerate(cells):
+        for col, sp in enumerate(snap.species):
+            assert arrays[f"{sp}_count"][z, y, x] == snap.counts[row, col]
+            np.testing.assert_allclose(arrays[f"{sp}_M"][z, y, x], conc[row, col])
+    assert arrays["H3O^1_count"].sum() == 12
+    assert arrays["H3O^1_M"][1, 1, 1] == 0
+
+
+def test_meso_to_vti_species_subset_and_unknown(tmp_path):
+    snap = _meso_snapshot()
+    _, arrays = decode_vti(snap.to_vti(tmp_path / "a.vti", species=["H3O^1"], encoding="ascii"))
+    assert set(arrays) == {"H3O^1_count", "H3O^1_M"}
+    with pytest.raises(KeyError):
+        snap.to_vti(tmp_path / "b.vti", species=["nope"])
+
+
+def test_meso_to_vti_extent(tmp_path):
+    snap = _meso_snapshot()
+    root, arrays = decode_vti(
+        snap.to_vti(tmp_path / "e.vti", extent=([-10, 0, 0], [30, 20, 30]), compress=True)
+    )
+    image = root.find("ImageData")
+    assert [float(v) for v in image.get("Origin").split()] == [-10.0, 0.0, 0.0]
+    assert arrays["H3O^1_count"].shape == (3, 2, 4)
