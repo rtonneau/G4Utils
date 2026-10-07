@@ -156,9 +156,33 @@
         "ticket": "03-richer-simulation-table",
         "commit": "6dffd49"
       }
+    },
+    {
+      "at": "2026-10-07T21:17:28.283Z",
+      "event": "ticket_started",
+      "phase": "ship",
+      "files": [
+        "02-plan/tickets/04-docs.md",
+        "03-implement/04-docs/commit-log.md"
+      ],
+      "detail": {
+        "ticket": "04-docs"
+      }
+    },
+    {
+      "at": "2026-10-07T21:19:18.728Z",
+      "event": "ticket_done",
+      "phase": "finish-pending",
+      "files": [
+        "03-implement/04-docs/commit-log.md"
+      ],
+      "detail": {
+        "ticket": "04-docs",
+        "commit": "d870a67"
+      }
     }
   ],
-  "current_phase": "ship",
+  "current_phase": "finish-pending",
   "git": {
     "branch": "feat/manifest-aware-dump",
     "base_branch": "main",
