@@ -189,6 +189,8 @@ def make_dump():
         energy_deposit_eV: float = 1e7,
         runs: list[dict] | None = None,
         with_manifest: bool = True,
+        prefix: str = "",
+        manifest_extra: dict | None = None,
     ) -> Path:
         d = Path(parent) / name
         d.mkdir(parents=True, exist_ok=True)
@@ -213,6 +215,9 @@ def make_dump():
                 "totalEnergyDeposit_eV": energy_deposit_eV,
                 "runs": runs,
             }
+            if prefix:
+                manifest["prefix"] = prefix
+            manifest.update(manifest_extra or {})
             with open(d / "Manifest.json", "w", encoding="utf-8", newline="\r\n") as f:
                 json.dump(manifest, f, indent=2)
         sp = [
@@ -227,13 +232,13 @@ def make_dump():
             f"{i},{n},100,{s},999.999,0.1,0.01"
             for (i, _, s), n in zip(sp, sp_late)
         ]
-        _write(d / "Species_nt_species.csv", _SPECIES_HEADER + rows)
+        _write(d / f"{prefix}Species_nt_species.csv", _SPECIES_HEADER + rows)
         _write(
-            d / "Reactions_nt_reactions.csv",
+            d / f"{prefix}Reactions_nt_reactions.csv",
             _REACTIONS_HEADER + ["1,0.001,646", "25,0.001,4436", "25,999.999,9000"],
         )
         _write(
-            d / "ReactionsMetadata.csv",
+            d / f"{prefix}ReactionsMetadata.csv",
             [
                 "reactionId,reaction",
                 "1,H3O^1 + OH^-1 -> (no products)",

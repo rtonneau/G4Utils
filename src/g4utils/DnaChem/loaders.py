@@ -7,7 +7,6 @@ import pandas as pd
 
 from g4utils.DnaChem.dump import (
     REACTIONS_METADATA_FILE,
-    _require,
     build_reaction_table,
     read_reactions_metadata,
 )
@@ -47,5 +46,4 @@ def load_reaction_table(path: str | Path) -> pd.DataFrame:
     if len(sim) > 1:
         raise ValueError(f"Expected a single Dump at {root}, found {len(sim)}")
     dump = next(iter(sim))
-    _require(dump.path / REACTIONS_METADATA_FILE)
     return dump.reaction_table()
