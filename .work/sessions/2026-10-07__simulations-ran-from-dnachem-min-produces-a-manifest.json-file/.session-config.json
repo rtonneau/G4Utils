@@ -1,0 +1,73 @@
+{
+  "session_id": "2026-10-07__simulations-ran-from-dnachem-min-produces-a-manifest.json-file",
+  "feature_name": "simulations ran from 'dnachem-min' produces a 'manifest.json' file with relevant information about a simulation run. Add a reader and a way to easily access these pieces of information. It should also produce a pretty printer kind function to display it within a jupyter notebook.",
+  "scratch_dir": ".scratch/tests/2026-10-07__simulations-ran-from-dnachem-min-produces-a-manifest.json-file",
+  "created_at": "2026-10-07T14:40:38.169Z",
+  "template_version": 2,
+  "history": [
+    {
+      "at": "2026-10-07T14:40:38.169Z",
+      "event": "session_started",
+      "phase": "grill",
+      "files": [
+        "01-grill/resume.md"
+      ]
+    },
+    {
+      "at": "2026-10-07T14:49:13.255Z",
+      "event": "auto_started",
+      "phase": "grill",
+      "detail": {
+        "target": "finish",
+        "steps": "write:grill → plan → write:plan → ship → finish",
+        "shipMode": "subagent+inline"
+      }
+    },
+    {
+      "at": "2026-10-07T14:49:29.550Z",
+      "event": "grill_written",
+      "phase": "plan-not-started",
+      "files": [
+        "01-grill/resume.md"
+      ]
+    },
+    {
+      "at": "2026-10-07T14:49:31.358Z",
+      "event": "plan_started",
+      "phase": "plan",
+      "files": [
+        "02-plan/plan.md"
+      ]
+    },
+    {
+      "at": "2026-10-07T14:49:52.764Z",
+      "event": "branch_created",
+      "phase": "plan",
+      "detail": {
+        "branch": "feat/dnachem-manifest-reader",
+        "base": "main"
+      }
+    },
+    {
+      "at": "2026-10-07T14:49:52.791Z",
+      "event": "plan_written",
+      "phase": "ship",
+      "files": [
+        "02-plan/plan.md",
+        "02-plan/tickets/01-manifest-reader.md",
+        "02-plan/tickets/02-manifest-display.md",
+        "02-plan/tickets/03-exports-docs.md"
+      ],
+      "detail": {
+        "tickets": 3
+      }
+    }
+  ],
+  "current_phase": "ship",
+  "git": {
+    "branch": "feat/dnachem-manifest-reader",
+    "base_branch": "main",
+    "branch_created_at": "2026-10-07T14:49:52.764Z",
+    "pr_url": null
+  }
+}
