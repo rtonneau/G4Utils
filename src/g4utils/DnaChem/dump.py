@@ -26,6 +26,53 @@ def _require(file: Path) -> Path:
     return file
 
 
+def read_reactions_metadata(file: Path) -> pd.DataFrame:
+    """Read ``ReactionsMetadata.csv`` (``reactionId,reaction``)."""
+    return pd.read_csv(file, encoding="utf-8", keep_default_na=False)
+
+
+def _split_side(side: str) -> tuple[str, ...]:
+    side = side.strip()
+    if side == "(no products)":
+        return ()
+    return tuple(short_name(s) for s in re.split(r"\s+\+\s+", side))
+
+
+def build_reaction_table(meta: pd.DataFrame) -> pd.DataFrame:
+    """One row per reaction, with Short-name equation and species count columns."""
+    reactants: list[tuple[str, ...]] = []
+    products: list[tuple[str, ...]] = []
+    for raw in meta["reaction"]:
+        if "->" not in raw:
+            raise ValueError(f"Malformed reaction line (no '->'): {raw!r}")
+        left, right = raw.split("->", 1)
+        reactants.append(_split_side(left))
+        products.append(_split_side(right))
+
+    equation = [
+        f"{' + '.join(r)} -> {' + '.join(p) if p else '(no products)'}"
+        for r, p in zip(reactants, products)
+    ]
+    species = sorted({s for side in (*reactants, *products) for s in side})
+    wide = pd.DataFrame(
+        {
+            **{f"reactant_{x}": [r.count(x) for r in reactants] for x in species},
+            **{f"product_{x}": [p.count(x) for p in products] for x in species},
+        },
+        dtype=int,
+    )
+    head = pd.DataFrame(
+        {
+            "reactionId": meta["reactionId"].to_numpy(),
+            "reaction": meta["reaction"].to_numpy(),
+            "equation": equation,
+            "reactants": pd.Series(reactants, dtype=object),
+            "products": pd.Series(products, dtype=object),
+        }
+    )
+    return pd.concat([head, wide], axis=1)
+
+
 class Dump:
     """One dnachem-min Dump folder, read lazily.
 
@@ -90,10 +137,7 @@ class Dump:
     def reaction_table(self) -> pd.DataFrame:
         """One row per reaction, with Short-name equation and species counts."""
         if self._reaction_table is None:
-            from g4utils.DnaChem.loaders import load_reaction_table
-
-            _require(self.path / REACTIONS_METADATA_FILE)
-            self._reaction_table = load_reaction_table(self.path)
+            self._reaction_table = build_reaction_table(self._read_metadata())
         return self._reaction_table
 
     @property
@@ -105,8 +149,7 @@ class Dump:
         return self._meso
 
     def _read_metadata(self) -> pd.DataFrame:
-        file = _require(self.path / REACTIONS_METADATA_FILE)
-        return pd.read_csv(file, encoding="utf-8", keep_default_na=False)
+        return read_reactions_metadata(_require(self.path / REACTIONS_METADATA_FILE))
 
     def __repr__(self) -> str:
         return f"Dump({str(self.path)!r})"
