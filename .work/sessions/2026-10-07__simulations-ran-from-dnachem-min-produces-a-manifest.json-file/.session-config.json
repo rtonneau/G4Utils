@@ -109,9 +109,33 @@
         "ticket": "02-manifest-display",
         "commit": "e355e3f"
       }
+    },
+    {
+      "at": "2026-10-07T14:53:11.951Z",
+      "event": "ticket_started",
+      "phase": "ship",
+      "files": [
+        "02-plan/tickets/03-exports-docs.md",
+        "03-implement/03-exports-docs/commit-log.md"
+      ],
+      "detail": {
+        "ticket": "03-exports-docs"
+      }
+    },
+    {
+      "at": "2026-10-07T14:54:54.064Z",
+      "event": "ticket_done",
+      "phase": "finish-pending",
+      "files": [
+        "03-implement/03-exports-docs/commit-log.md"
+      ],
+      "detail": {
+        "ticket": "03-exports-docs",
+        "commit": "5ace55d"
+      }
     }
   ],
-  "current_phase": "ship",
+  "current_phase": "finish-pending",
   "git": {
     "branch": "feat/dnachem-manifest-reader",
     "base_branch": "main",
