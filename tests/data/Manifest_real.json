@@ -1,0 +1,35 @@
+{
+  "schemaVersion": 1,
+  "timestamp": "2026-10-02T15:53:44",
+  "elapsedSinceStart_s": 72.1872853,
+  "elapsedSincePreviousDump_s": 72.1872853,
+  "geant4Version": "geant4-11-04-patch-01",
+  "macro": "macro/02b-spike.in",
+  "chemistry": "PureWater",
+  "scavengers": [],
+  "pH": 7,
+  "halfBox_um": 500,
+  "chemistryEndTime_ns": 1000000000,
+  "runMode": "MT",
+  "threads": 2,
+  "outputDirAsConfigured": "../.scratch/tests/2026-10-02__irt-syn-mesoscopic/02b-mt",
+  "outputDirAbsolute": "C:\\Users\\rtonneau\\DEV\\GEANT4\\SIM\\dnachem-min\\.scratch\\tests\\2026-10-02__irt-syn-mesoscopic\\02b-mt",
+  "prefix": "",
+  "subdir": "",
+  "totalEvents": 2,
+  "totalEnergyDeposit_eV": 20000,
+  "files": ["Species.Txt", "Species_nt_species.csv", "Reactions.Txt", "Reactions_nt_reactions.csv", "ReactionsMetadata.csv", "PhysicsInteractions.Txt", "PhysicsInteractions.csv", "PreChemical_run0_event0.txt", "PreChemical_run0_event1.txt"],
+  "runs": [
+    {
+      "run": 0,
+      "events": 2,
+      "particle": "e-",
+      "beamEnergy_keV": 10,
+      "position_um": [0, 0, 0],
+      "direction": [0, 0, 1],
+      "energyDeposit_eV": 20000,
+      "seed": 12345,
+      "wallTime_s": 70.4507072
+    }
+  ]
+}
