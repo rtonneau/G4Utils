@@ -79,6 +79,11 @@ scavengers, pH), the totals (events, energy deposit) and the files produced. Sou
 of truth for a Dump's physical parameters.
 _Avoid_: "metadata" (collides with `ReactionsMetadata.csv`).
 
+**Manifest run**:
+One entry of a Manifest's `runs` list: the beam, energy deposit, seed and wall time of
+one `/run/beamOn` folded into the Dump.
+_Avoid_: "run" alone (a Geant4 run in general).
+
 **Scan**:
 A set of Dumps side by side that differ in one or more parameters (O2 content, beam
 energy, ...), usually sibling folders under one results directory.
