@@ -109,9 +109,33 @@
         "ticket": "02-simulation-class",
         "commit": "c451e10"
       }
+    },
+    {
+      "at": "2026-10-07T20:52:08.387Z",
+      "event": "ticket_started",
+      "phase": "ship",
+      "files": [
+        "02-plan/tickets/03-loaders-exports-docs.md",
+        "03-implement/03-loaders-exports-docs/commit-log.md"
+      ],
+      "detail": {
+        "ticket": "03-loaders-exports-docs"
+      }
+    },
+    {
+      "at": "2026-10-07T20:54:26.699Z",
+      "event": "ticket_done",
+      "phase": "finish-pending",
+      "files": [
+        "03-implement/03-loaders-exports-docs/commit-log.md"
+      ],
+      "detail": {
+        "ticket": "03-loaders-exports-docs",
+        "commit": "a2d83b7"
+      }
     }
   ],
-  "current_phase": "ship",
+  "current_phase": "finish-pending",
   "git": {
     "branch": "feat/dnachem-simulation-accessor",
     "base_branch": "main",
