@@ -61,6 +61,30 @@
       "detail": {
         "tickets": 3
       }
+    },
+    {
+      "at": "2026-10-07T20:49:08.563Z",
+      "event": "ticket_started",
+      "phase": "ship",
+      "files": [
+        "02-plan/tickets/01-dump-class.md",
+        "03-implement/01-dump-class/commit-log.md"
+      ],
+      "detail": {
+        "ticket": "01-dump-class"
+      }
+    },
+    {
+      "at": "2026-10-07T20:50:56.866Z",
+      "event": "ticket_done",
+      "phase": "ship",
+      "files": [
+        "03-implement/01-dump-class/commit-log.md"
+      ],
+      "detail": {
+        "ticket": "01-dump-class",
+        "commit": "51c3396"
+      }
     }
   ],
   "current_phase": "ship",
@@ -69,5 +93,6 @@
     "base_branch": "main",
     "branch_created_at": "2026-10-07T20:49:03.054Z",
     "pr_url": null
-  }
+  },
+  "ship_mode": "subagent+inline"
 }
