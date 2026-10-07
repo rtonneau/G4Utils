@@ -1,13 +1,20 @@
 from __future__ import annotations
 
+import dataclasses
 import json
 import math
 import re
+from pathlib import Path
 
 import pytest
 
 from g4utils.DnaChem.dumps import find_dumps, parse_dump_name
-from g4utils.DnaChem.manifest import dump_columns, load_manifests
+from g4utils.DnaChem.manifest import (
+    Manifest,
+    dump_columns,
+    load_manifests,
+    read_manifest,
+)
 
 
 
@@ -96,3 +103,65 @@ def test_load_manifests_rows_and_pattern(tmp_path, make_dump):
 def test_parse_dump_name_non_numeric_words_stay_strings():
     out = parse_dump_name("run_nan_inf", r"run_(?P<a>[a-z]+)_(?P<b>[a-z]+)")
     assert out == {"a": "nan", "b": "inf"}
+
+
+# --- read_manifest -----------------------------------------------------------
+
+REAL = Path(__file__).parent / "data" / "Manifest_real.json"
+
+
+def test_read_manifest_real_fixture():
+    m = read_manifest(REAL)
+    assert isinstance(m, Manifest)
+    assert m.schemaVersion == 1
+    assert m.chemistry == "PureWater"
+    assert m.scavengers == ()
+    assert m.scavenger_molarity("O2") is None
+    assert len(m.runs) == 1 and m.runs[0].particle == "e-"
+    assert m.runs[0].position_um == (0, 0, 0)
+    assert len(m.runs_table()) == 1
+    with pytest.raises(dataclasses.FrozenInstanceError):
+        m.chemistry = "x"
+
+
+def test_read_manifest_folder_and_endofrun(tmp_path, make_dump):
+    d = make_dump(tmp_path, "run_0pO2")
+    assert read_manifest(d) == read_manifest(tmp_path)
+    only = tmp_path / "eor"
+    only.mkdir()
+    (only / "EndOfRun_Manifest.json").write_text('{"schemaVersion": 1}')
+    assert read_manifest(only).runs == ()
+    assert read_manifest(only / "EndOfRun_Manifest.json").pH is None
+
+
+def test_read_manifest_errors(tmp_path, make_dump):
+    make_dump(tmp_path, "a")
+    make_dump(tmp_path, "b")
+    with pytest.raises(ValueError, match="load_manifests"):
+        read_manifest(tmp_path)
+    empty = tmp_path / "empty"
+    empty.mkdir()
+    with pytest.raises(FileNotFoundError):
+        read_manifest(empty)
+    bad = tmp_path / "bad_Manifest.json"
+    bad.write_text("[1]")
+    with pytest.raises(ValueError, match="bad_Manifest.json"):
+        read_manifest(bad)
+    bad.write_text("{}")
+    with pytest.raises(ValueError, match="bad_Manifest.json"):
+        read_manifest(bad)
+
+
+def test_read_manifest_future_schema_and_raw(tmp_path):
+    f = tmp_path / "Manifest.json"
+    f.write_text(
+        '{"schemaVersion": 2, "newKey": 3, "scavengers": '
+        '[{"species": "O2", "molarity_M": 0.001, "x": 1}], '
+        '"runs": [{"run": 0, "extra": 5}]}'
+    )
+    with pytest.warns(UserWarning, match="schemaVersion"):
+        m = read_manifest(f)
+    assert m.raw == {"newKey": 3}
+    assert m.scavenger_molarity("O2") == 0.001
+    assert m.scavengers[0].raw == {"x": 1}
+    assert m.runs_table().loc[0, "extra"] == 5
