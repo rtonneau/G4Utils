@@ -172,6 +172,28 @@ g_by_time = df.pivot_table(
 
 `path` is either one Dump folder (it contains `Manifest.json`) or a parent folder: every direct subfolder with a `Manifest.json` is loaded, other files and folders are ignored. Species are identified by name, never by numeric ID.
 
+### Opening a simulation folder
+
+`Simulation` opens a dnachem-min folder without reading any data file. `path` is a flat Dump folder, a `results` folder holding Dumps, or a simulation folder with a `results/` subfolder. Each Dump is a lazy `Dump`: its tables and its meso file load on first access and are cached.
+
+```python
+from g4utils.DnaChem import Simulation
+
+sim = Simulation("path/to/simulation", name_pattern=r"run_(?P<o2_percent>[\dp]+)pO2")
+print(sim)            # Simulation('.../results', 3 subruns)
+sim.table()           # one row per subrun: name, labels, Manifest summary
+
+dump = sim.subrun("run_21pO2")   # pick a subrun by folder name (KeyError lists the names)
+species = dump.species()          # same frame as load_species() gives for this Dump
+dump.reactions()                  # reaction counts
+dump.reaction_table()             # one row per reaction
+dump.manifest                     # parsed Manifest
+
+meso = dump.meso                  # SpeciesMesoSpatialFile (SpeciesMesoSpatial.h5)
+```
+
+`load_species()`, `load_reactions()` and `load_reaction_table()` below are built on these classes. A missing data file raises `FileNotFoundError` naming the file.
+
 ### Columns added by loaders
 
 **`load_species()`** adds these columns to the ntuple data:
