@@ -62,6 +62,30 @@
       "detail": {
         "tickets": 4
       }
+    },
+    {
+      "at": "2026-10-07T21:09:06.838Z",
+      "event": "ticket_started",
+      "phase": "ship",
+      "files": [
+        "02-plan/tickets/01-manifest-model-fields.md",
+        "03-implement/01-manifest-model-fields/commit-log.md"
+      ],
+      "detail": {
+        "ticket": "01-manifest-model-fields"
+      }
+    },
+    {
+      "at": "2026-10-07T21:10:03.873Z",
+      "event": "ticket_done",
+      "phase": "ship",
+      "files": [
+        "03-implement/01-manifest-model-fields/commit-log.md"
+      ],
+      "detail": {
+        "ticket": "01-manifest-model-fields",
+        "commit": "9a283d6"
+      }
     }
   ],
   "current_phase": "ship",
@@ -70,5 +94,6 @@
     "base_branch": "main",
     "branch_created_at": "2026-10-07T21:09:05.958Z",
     "pr_url": null
-  }
+  },
+  "ship_mode": "subagent+inline"
 }
