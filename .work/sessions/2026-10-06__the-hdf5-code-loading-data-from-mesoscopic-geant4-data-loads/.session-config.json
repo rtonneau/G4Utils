@@ -1,0 +1,178 @@
+{
+  "session_id": "2026-10-06__the-hdf5-code-loading-data-from-mesoscopic-geant4-data-loads",
+  "feature_name": "the HDF5 code loading data from mesoscopic geant4 data loads sparsed data. It should provides a way to reconstruct full dataframe (fileld with 0) to have correct sizes and compare easily one to another",
+  "scratch_dir": ".scratch/tests/2026-10-06__the-hdf5-code-loading-data-from-mesoscopic-geant4-data-loads",
+  "created_at": "2026-10-06T17:08:19.128Z",
+  "template_version": 2,
+  "history": [
+    {
+      "at": "2026-10-06T17:08:19.128Z",
+      "event": "session_started",
+      "phase": "grill",
+      "files": [
+        "01-grill/resume.md"
+      ]
+    },
+    {
+      "at": "2026-10-06T17:22:04.393Z",
+      "event": "grill_written",
+      "phase": "plan-not-started",
+      "files": [
+        "01-grill/resume.md"
+      ]
+    },
+    {
+      "at": "2026-10-06T17:22:04.529Z",
+      "event": "plan_started",
+      "phase": "plan",
+      "files": [
+        "02-plan/plan.md"
+      ]
+    },
+    {
+      "at": "2026-10-06T17:22:37.557Z",
+      "event": "branch_created",
+      "phase": "plan",
+      "detail": {
+        "branch": "feat/meso-spatial-dense-grid",
+        "base": "main"
+      }
+    },
+    {
+      "at": "2026-10-06T17:22:37.588Z",
+      "event": "plan_written",
+      "phase": "ship",
+      "files": [
+        "02-plan/plan.md",
+        "02-plan/tickets/01-dense-grid-snapshot.md",
+        "02-plan/tickets/02-read-dense-periods.md",
+        "02-plan/tickets/03-exports-readme.md"
+      ],
+      "detail": {
+        "tickets": 3
+      }
+    },
+    {
+      "at": "2026-10-06T17:27:02.375Z",
+      "event": "auto_started",
+      "phase": "ship",
+      "detail": {
+        "target": "finish",
+        "steps": "ship → finish"
+      }
+    },
+    {
+      "at": "2026-10-06T17:27:28.319Z",
+      "event": "ticket_started",
+      "phase": "ship",
+      "files": [
+        "02-plan/tickets/01-dense-grid-snapshot.md",
+        "03-implement/01-dense-grid-snapshot/commit-log.md"
+      ],
+      "detail": {
+        "ticket": "01-dense-grid-snapshot"
+      }
+    },
+    {
+      "at": "2026-10-06T17:29:12.431Z",
+      "event": "ticket_done",
+      "phase": "ship",
+      "files": [
+        "03-implement/01-dense-grid-snapshot/commit-log.md"
+      ],
+      "detail": {
+        "ticket": "01-dense-grid-snapshot",
+        "commit": "477d76d"
+      }
+    },
+    {
+      "at": "2026-10-06T17:29:15.594Z",
+      "event": "ticket_started",
+      "phase": "ship",
+      "files": [
+        "02-plan/tickets/02-read-dense-periods.md",
+        "03-implement/02-read-dense-periods/commit-log.md"
+      ],
+      "detail": {
+        "ticket": "02-read-dense-periods"
+      }
+    },
+    {
+      "at": "2026-10-06T17:30:36.294Z",
+      "event": "ticket_done",
+      "phase": "ship",
+      "files": [
+        "03-implement/02-read-dense-periods/commit-log.md"
+      ],
+      "detail": {
+        "ticket": "02-read-dense-periods",
+        "commit": "750e67c"
+      }
+    },
+    {
+      "at": "2026-10-06T17:30:37.025Z",
+      "event": "ticket_started",
+      "phase": "ship",
+      "files": [
+        "02-plan/tickets/03-exports-readme.md",
+        "03-implement/03-exports-readme/commit-log.md"
+      ],
+      "detail": {
+        "ticket": "03-exports-readme"
+      }
+    },
+    {
+      "at": "2026-10-06T17:33:10.045Z",
+      "event": "ticket_done",
+      "phase": "finish-pending",
+      "files": [
+        "03-implement/03-exports-readme/commit-log.md"
+      ],
+      "detail": {
+        "ticket": "03-exports-readme",
+        "commit": "11a4397"
+      }
+    },
+    {
+      "at": "2026-10-06T17:33:17.630Z",
+      "event": "changelog_written",
+      "phase": "finish-pending",
+      "detail": {
+        "bump": "minor"
+      }
+    },
+    {
+      "at": "2026-10-06T17:33:23.334Z",
+      "event": "pr_opened",
+      "phase": "finish-pending",
+      "detail": {
+        "url": "https://github.com/rtonneau/G4Utils/pull/5"
+      }
+    },
+    {
+      "at": "2026-10-06T17:33:23.337Z",
+      "event": "session_finished",
+      "phase": "finished",
+      "files": [
+        "INDEX.md"
+      ]
+    }
+  ],
+  "current_phase": "finished",
+  "git": {
+    "branch": "feat/meso-spatial-dense-grid",
+    "base_branch": "main",
+    "branch_created_at": "2026-10-06T17:22:37.557Z",
+    "pr_url": "https://github.com/rtonneau/G4Utils/pull/5"
+  },
+  "ship_mode": "subagent+inline",
+  "changelog": {
+    "bump": "minor",
+    "floor": "minor",
+    "reason": null,
+    "bullets": 3,
+    "path": ".work/changelog/2026-10-06__the-hdf5-code-loading-data-from-mesoscopic-geant4-data-loads.md",
+    "written_at": "2026-10-06T17:33:17.621Z"
+  },
+  "finished_at": "2026-10-06T17:33:23.337Z"
+}
