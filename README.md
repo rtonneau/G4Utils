@@ -181,9 +181,13 @@ from g4utils.DnaChem import Simulation
 
 sim = Simulation("path/to/simulation", name_pattern=r"run_(?P<o2_percent>[\dp]+)pO2")
 print(sim)            # Simulation('.../results', 3 subruns)
-sim.table()           # one row per subrun: name, labels, Manifest summary
+sim.table()           # one row per subrun: name, labels, Manifest summary columns
 
 dump = sim.subrun("run_21pO2")   # pick a subrun by folder name (KeyError lists the names)
+dump.files            # tuple of file names listed in Manifest
+dump.prefix           # data file prefix from Manifest (empty if absent)
+dump.has_meso         # True if meso output enabled and SpeciesMesoSpatial.h5 exists
+
 species = dump.species()          # same frame as load_species() gives for this Dump
 dump.reactions()                  # reaction counts
 dump.reaction_table()             # one row per reaction
@@ -191,6 +195,8 @@ dump.manifest                     # parsed Manifest
 
 meso = dump.meso                  # SpeciesMesoSpatialFile (SpeciesMesoSpatial.h5)
 ```
+
+`Simulation.table()` provides one row per Dump with columns including `dump` (the folder name), one column per Name pattern group, and Manifest summary fields such as `chemistryModel`, `handOverTime_ns`, `chemistryEndTime_ns`, `voxelSize_nm`, `mesoPixels`, `mesoTimesPerDecade`, `mesoSpatialOutput`, `threads`, and `wallTime_s` (total wall time across all runs in the Dump).
 
 `load_species()`, `load_reactions()` and `load_reaction_table()` below are built on these classes. A missing data file raises `FileNotFoundError` naming the file.
 
