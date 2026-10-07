@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import dataclasses
+import html
 import json
 import math
 import re
@@ -116,6 +117,156 @@ class Manifest:
             if sc.species == species:
                 return sc.molarity_M
         return None
+
+    def __str__(self) -> str:
+        return _render_text(self)
+
+    def _repr_html_(self) -> str:
+        return _render_html(self)
+
+    def show(self) -> None:
+        """Display this Manifest in a notebook (requires IPython)."""
+        try:
+            from IPython.display import display
+        except ImportError as exc:
+            raise ImportError(
+                "Manifest.show() requires IPython; install it with "
+                "'pip install ipython'"
+            ) from exc
+        display(self)
+
+
+def _fmt(value) -> str:
+    if isinstance(value, (list, tuple)):
+        return "(" + ", ".join(_fmt(v) for v in value) + ")"
+    return str(value)
+
+
+def _present(pairs) -> list[tuple[str, str]]:
+    return [(k, _fmt(v)) for k, v in pairs if v is not None]
+
+
+_RUN_COLUMNS = [f.name for f in dataclasses.fields(ManifestRun) if f.name != "raw"]
+
+
+def _summary(m: Manifest) -> dict:
+    """Display content: key/value sections, runs table, files, unknown keys."""
+    overview = _present(
+        [
+            ("schemaVersion", m.schemaVersion),
+            ("timestamp", m.timestamp),
+            ("elapsedSinceStart_s", m.elapsedSinceStart_s),
+            ("elapsedSincePreviousDump_s", m.elapsedSincePreviousDump_s),
+            ("geant4Version", m.geant4Version),
+            ("macro", m.macro),
+            ("runMode", m.runMode),
+            ("threads", m.threads),
+            ("outputDirAsConfigured", m.outputDirAsConfigured),
+            ("outputDirAbsolute", m.outputDirAbsolute),
+            ("prefix", m.prefix),
+            ("subdir", m.subdir),
+        ]
+    )
+    chemistry = _present(
+        [
+            ("chemistry", m.chemistry),
+            ("pH", m.pH),
+            ("halfBox_um", m.halfBox_um),
+            ("chemistryEndTime_ns", m.chemistryEndTime_ns),
+        ]
+    )
+    for sc in m.scavengers:
+        value = "-" if sc.molarity_M is None else _fmt(sc.molarity_M)
+        chemistry.append((f"{sc.species} molarity_M", value))
+    totals = _present(
+        [
+            ("totalEvents", m.totalEvents),
+            ("totalEnergyDeposit_eV", m.totalEnergyDeposit_eV),
+        ]
+    )
+    other = [(k, _fmt(v)) for k, v in m.raw.items()]
+    run_rows = []
+    for r in m.runs:
+        row = {c: _fmt(getattr(r, c)) for c in _RUN_COLUMNS if getattr(r, c) is not None}
+        row.update({k: _fmt(v) for k, v in r.raw.items()})
+        run_rows.append(row)
+    run_cols = [c for c in _RUN_COLUMNS if any(c in row for row in run_rows)]
+    for row in run_rows:
+        for k in row:
+            if k not in run_cols:
+                run_cols.append(k)
+    return {
+        "Overview": overview,
+        "Chemistry": chemistry,
+        "Totals": totals,
+        "run_cols": run_cols,
+        "run_rows": run_rows,
+        "files": list(m.files) if m.files else [],
+        "Other": other,
+    }
+
+
+def _render_text(m: Manifest) -> str:
+    s = _summary(m)
+    out: list[str] = []
+
+    def section(title, lines):
+        if lines:
+            out.extend([title, "-" * len(title), *lines, ""])
+
+    def aligned(pairs):
+        width = max((len(k) for k, _ in pairs), default=0)
+        return [f"  {k.ljust(width)}  {v}" for k, v in pairs]
+
+    for title in ("Overview", "Chemistry", "Totals"):
+        section(title, aligned(s[title]))
+    cols, rows = s["run_cols"], s["run_rows"]
+    if rows:
+        widths = [max(len(c), *(len(r.get(c, "")) for r in rows)) for c in cols]
+        lines = ["  " + "  ".join(c.ljust(w) for c, w in zip(cols, widths))]
+        for r in rows:
+            lines.append(
+                "  " + "  ".join(r.get(c, "").ljust(w) for c, w in zip(cols, widths))
+            )
+        section("Runs", [ln.rstrip() for ln in lines])
+    section("Files", [f"  {f}" for f in s["files"]])
+    section("Other", aligned(s["Other"]))
+    return "\n".join(out).rstrip() + "\n"
+
+
+def _render_html(m: Manifest) -> str:
+    s = _summary(m)
+    e = html.escape
+    parts: list[str] = []
+
+    def kv_table(title, pairs):
+        if not pairs:
+            return
+        rows = "".join(
+            f"<tr><th style='text-align:left'>{e(k)}</th><td>{e(v)}</td></tr>"
+            for k, v in pairs
+        )
+        parts.append(f"<h4>{e(title)}</h4><table>{rows}</table>")
+
+    for title in ("Overview", "Chemistry", "Totals"):
+        kv_table(title, s[title])
+    if s["run_rows"]:
+        head = "".join(f"<th>{e(c)}</th>" for c in s["run_cols"])
+        body = "".join(
+            "<tr>"
+            + "".join(f"<td>{e(r.get(c, ''))}</td>" for c in s["run_cols"])
+            + "</tr>"
+            for r in s["run_rows"]
+        )
+        parts.append(f"<h4>Runs</h4><table><tr>{head}</tr>{body}</table>")
+    if s["files"]:
+        items = "".join(f"<tr><td>{e(f)}</td></tr>" for f in s["files"])
+        parts.append(
+            f"<details><summary><b>Files</b> ({len(s['files'])})</summary>"
+            f"<table>{items}</table></details>"
+        )
+    kv_table("Other", s["Other"])
+    return "<div>" + "".join(parts) + "</div>"
 
 
 def _parse_manifest_file(file: Path) -> Manifest:

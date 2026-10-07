@@ -4,6 +4,8 @@ import dataclasses
 import json
 import math
 import re
+import sys
+import types
 from pathlib import Path
 
 import pytest
@@ -165,3 +167,56 @@ def test_read_manifest_future_schema_and_raw(tmp_path):
     assert m.scavenger_molarity("O2") == 0.001
     assert m.scavengers[0].raw == {"x": 1}
     assert m.runs_table().loc[0, "extra"] == 5
+
+
+# --- display -----------------------------------------------------------------
+
+
+def test_str_real_fixture_sections():
+    text = str(read_manifest(REAL))
+    for title in ("Overview", "Chemistry", "Totals", "Runs", "Files"):
+        assert title in text
+    assert "Other" not in text
+    assert "outputDirAbsolute" in text and "outputDirAsConfigured" in text
+    assert "prefix" in text and "subdir" in text
+    assert "halfBox_um" in text
+    assert "PreChemical_run0_event0.txt" in text
+
+
+def test_html_real_fixture():
+    h = read_manifest(REAL)._repr_html_()
+    assert "<details>" in h and "Species.Txt" in h
+    assert h.index("<details>") < h.index("Species.Txt")
+    assert "<h4>Runs</h4>" in h and "<table>" in h
+
+
+def test_display_minimal_skips_none_and_escapes():
+    m = Manifest.from_dict({"schemaVersion": 1, "macro": "<b>&x</b>", "mystery": "<i>"})
+    text = str(m)
+    assert "Overview" in text and "Other" in text and "mystery" in text
+    for absent in ("Chemistry", "Runs", "Files", "Totals", "halfBox_um", "None"):
+        assert absent not in text
+    h = m._repr_html_()
+    assert "&lt;b&gt;&amp;x&lt;/b&gt;" in h and "<b>&x" not in h
+    assert "&lt;i&gt;" in h
+    assert "<details>" not in h and "Runs" not in h
+
+
+def test_show_calls_display(monkeypatch):
+    shown = []
+    ipy = types.ModuleType("IPython")
+    disp = types.ModuleType("IPython.display")
+    disp.display = shown.append
+    ipy.display = disp
+    monkeypatch.setitem(sys.modules, "IPython", ipy)
+    monkeypatch.setitem(sys.modules, "IPython.display", disp)
+    m = Manifest.from_dict({"schemaVersion": 1})
+    m.show()
+    assert shown == [m]
+
+
+def test_show_without_ipython_raises(monkeypatch):
+    monkeypatch.setitem(sys.modules, "IPython", None)
+    monkeypatch.setitem(sys.modules, "IPython.display", None)
+    with pytest.raises(ImportError, match="IPython"):
+        Manifest.from_dict({"schemaVersion": 1}).show()
