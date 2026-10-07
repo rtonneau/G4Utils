@@ -132,6 +132,30 @@
         "ticket": "02-dump-manifest-files",
         "commit": "bd32af1"
       }
+    },
+    {
+      "at": "2026-10-07T21:16:31.402Z",
+      "event": "ticket_started",
+      "phase": "ship",
+      "files": [
+        "02-plan/tickets/03-richer-simulation-table.md",
+        "03-implement/03-richer-simulation-table/commit-log.md"
+      ],
+      "detail": {
+        "ticket": "03-richer-simulation-table"
+      }
+    },
+    {
+      "at": "2026-10-07T21:17:27.562Z",
+      "event": "ticket_done",
+      "phase": "ship",
+      "files": [
+        "03-implement/03-richer-simulation-table/commit-log.md"
+      ],
+      "detail": {
+        "ticket": "03-richer-simulation-table",
+        "commit": "6dffd49"
+      }
     }
   ],
   "current_phase": "ship",
