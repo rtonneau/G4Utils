@@ -2,7 +2,6 @@
 bump: minor
 floor: minor
 ---
-- Export `read_manifest()` and `Manifest` from `g4utils.DnaChem`: read one Manifest.json file with full attribute access.
-- Add `Manifest.runs_table()` to get per-run metadata as a DataFrame; supports unknown run keys as extra columns.
-- Add `Manifest.scavenger_molarity(species)` to query the molarity of a scavenger species.
-- Manifest objects display as formatted text and as HTML tables in notebooks via `_repr_html_()` and `show()`.
+- Add `read_manifest()` and the `Manifest` object to `g4utils.DnaChem`: read one dnachem-min `Manifest.json` (Dump folder, manifest file, or a folder with a single Dump) and access every field as an attribute, including per-run data and scavenger molarities.
+- Add `Manifest.runs_table()` (per-run DataFrame) and `Manifest.scavenger_molarity(species)`.
+- Display a Manifest in a Jupyter notebook as formatted HTML tables (or as text with `print`), and explicitly with `Manifest.show()`.
