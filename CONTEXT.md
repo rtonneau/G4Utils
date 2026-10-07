@@ -73,6 +73,18 @@ single flush: species and reaction tallies, pre-chemical files, and exactly one
 _Avoid_: "run" (a Geant4 run is one `/run/beamOn`; a Dump may cover several),
 "case", "simulation".
 
+**Simulation folder**:
+The top folder of a whole dnachem-min simulation (e.g. one scan script's output): the
+executable, macros, console logs and a `results/` folder holding the **Dumps**. It
+holds no Manifest itself; each Dump has its own.
+_Avoid_: "Dump" (that is one subfolder of `results/`), "run".
+
+**Dump subrun**:
+In the Simulation-folder accessor's API, a Dump seen as one part of its Simulation
+folder (e.g. one O2 level of the scan). Not a Vox **Subrun**, which is a batch inside
+an HDF5 file.
+_Avoid_: bare "subrun" in prose (Vox term).
+
 **Manifest**:
 The `Manifest.json` inside a Dump: what was simulated (beam per run, Chemistry,
 scavengers, pH), the totals (events, energy deposit) and the files produced. Source
