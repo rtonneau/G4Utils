@@ -85,6 +85,30 @@
         "ticket": "01-manifest-reader",
         "commit": "df58361"
       }
+    },
+    {
+      "at": "2026-10-07T14:51:55.277Z",
+      "event": "ticket_started",
+      "phase": "ship",
+      "files": [
+        "02-plan/tickets/02-manifest-display.md",
+        "03-implement/02-manifest-display/commit-log.md"
+      ],
+      "detail": {
+        "ticket": "02-manifest-display"
+      }
+    },
+    {
+      "at": "2026-10-07T14:53:11.237Z",
+      "event": "ticket_done",
+      "phase": "ship",
+      "files": [
+        "03-implement/02-manifest-display/commit-log.md"
+      ],
+      "detail": {
+        "ticket": "02-manifest-display",
+        "commit": "e355e3f"
+      }
     }
   ],
   "current_phase": "ship",
