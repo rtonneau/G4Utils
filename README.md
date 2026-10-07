@@ -220,6 +220,68 @@ merged = reactions_data.merge(df, on="reactionId")
 
 **`load_manifests()`** loads one row per run with Dump and run metadata.
 
+### Reading Manifests
+
+`read_manifest()` reads one `Manifest.json` file from a Dump folder, a single Manifest file, or a folder holding exactly one Dump:
+
+```python
+from g4utils.DnaChem import read_manifest
+
+manifest = read_manifest("path/to/Dump")
+# or
+manifest = read_manifest("path/to/Manifest.json")
+```
+
+The returned `Manifest` object provides attribute access to simulation metadata:
+
+```python
+# Simulation info
+print(manifest.timestamp)
+print(manifest.geant4Version)
+print(manifest.macro)
+
+# Chemistry settings
+print(manifest.chemistry)
+print(manifest.pH)
+print(manifest.halfBox_um)
+print(manifest.chemistryEndTime_ns)
+
+# Scavengers
+for scavenger in manifest.scavengers:
+    print(f"{scavenger.species}: {scavenger.molarity_M} M")
+
+# Or query one scavenger directly
+o2_molarity = manifest.scavenger_molarity("O2")
+
+# Run metadata
+print(manifest.totalEvents)
+print(manifest.totalEnergyDeposit_eV)
+```
+
+All fields from `Manifest.json` are accessible as attributes. Unknown keys are stored in the `raw` attribute for forward compatibility.
+
+#### Per-run data: `runs_table()`
+
+Access per-run metadata (beamEnergy, position, seed, etc.) as a DataFrame:
+
+```python
+runs_df = manifest.runs_table()
+# One row per run, with columns like: run, events, particle, beamEnergy_keV, position_um, direction, energyDeposit_eV, seed, wallTime_s
+```
+
+#### Notebook display
+
+`Manifest` has a text representation (`str()`) and notebook HTML rendering (`_repr_html_()`):
+
+```python
+# In a Jupyter notebook
+manifest  # displays as formatted HTML table
+
+# Or explicitly
+print(manifest)  # text format
+manifest.show()  # display() using IPython
+```
+
 ### Other utilities
 
 - `find_dumps()`: locate Dump folders by Manifest.json
