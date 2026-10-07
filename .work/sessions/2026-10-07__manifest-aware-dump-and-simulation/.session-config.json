@@ -86,6 +86,52 @@
         "ticket": "01-manifest-model-fields",
         "commit": "9a283d6"
       }
+    },
+    {
+      "at": "2026-10-07T21:10:07.558Z",
+      "event": "ticket_started",
+      "phase": "ship",
+      "files": [
+        "02-plan/tickets/02-dump-manifest-files.md",
+        "03-implement/02-dump-manifest-files/commit-log.md"
+      ],
+      "detail": {
+        "ticket": "02-dump-manifest-files"
+      }
+    },
+    {
+      "at": "2026-10-07T21:10:50.201Z",
+      "event": "ticket_blocked",
+      "phase": "ship",
+      "files": [
+        "03-implement/02-dump-manifest-files/commit-log.md"
+      ],
+      "detail": {
+        "ticket": "02-dump-manifest-files",
+        "reason": "Dump/Simulation exist only on unmerged PR #8 (feat/dnachem-simulation-accessor); this branch was cut from main without them"
+      }
+    },
+    {
+      "at": "2026-10-07T21:14:08.404Z",
+      "event": "auto_started",
+      "phase": "ship",
+      "detail": {
+        "target": "finish",
+        "steps": "ship → finish",
+        "shipMode": "subagent+inline"
+      }
+    },
+    {
+      "at": "2026-10-07T21:16:27.914Z",
+      "event": "ticket_done",
+      "phase": "ship",
+      "files": [
+        "03-implement/02-dump-manifest-files/commit-log.md"
+      ],
+      "detail": {
+        "ticket": "02-dump-manifest-files",
+        "commit": "bd32af1"
+      }
     }
   ],
   "current_phase": "ship",
