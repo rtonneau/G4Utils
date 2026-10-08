@@ -110,13 +110,34 @@ class Dump:
             self._manifest = _parse_manifest_file(self.path / MANIFEST_NAME)
         return self._manifest
 
+    @property
+    def files(self) -> tuple[str, ...]:
+        """File names listed in the Manifest ``files`` (empty if absent)."""
+        return tuple(self.manifest.files or ())
+
+    @property
+    def prefix(self) -> str:
+        """Filename prefix of the Dump's data files (empty if absent or null)."""
+        return self.manifest.prefix or ""
+
+    def _data_file(self, filename: str) -> Path:
+        return self.path / f"{self.prefix}{filename}"
+
+    @property
+    def has_meso(self) -> bool:
+        """True if meso output was not disabled and the meso h5 file exists."""
+        return (
+            self.manifest.mesoSpatialOutput is not False
+            and self._data_file(MESO_FILE).is_file()
+        )
+
     def _columns(self) -> dict:
         return dump_columns(self.manifest, self.name) | self.labels
 
     def species(self) -> pd.DataFrame:
         """Species counts and G values (per 100 eV)."""
         if self._species is None:
-            df = read_ntuple(_require(self.path / SPECIES_FILE))
+            df = read_ntuple(_require(self._data_file(SPECIES_FILE)))
             df["species"] = df["speciesName"].map(short_name)
             df["time_s"] = df.pop("time") * 1e-9
             df = df.assign(**self._columns())
@@ -127,7 +148,7 @@ class Dump:
     def reactions(self) -> pd.DataFrame:
         """Reaction counts with labels."""
         if self._reactions is None:
-            df = read_ntuple(_require(self.path / REACTIONS_FILE))
+            df = read_ntuple(_require(self._data_file(REACTIONS_FILE)))
             meta = self._read_metadata()
             df = df.merge(meta, on="reactionId", how="left")
             df["time_s"] = df.pop("time") * 1e-9
@@ -145,11 +166,21 @@ class Dump:
         if self._meso is None:
             from g4utils.HDF5 import SpeciesMesoSpatialFile
 
-            self._meso = SpeciesMesoSpatialFile(_require(self.path / MESO_FILE))
+            if self.manifest.mesoSpatialOutput is False:
+                raise FileNotFoundError(
+                    f"Meso output was disabled in the Manifest "
+                    f"(mesoSpatialOutput=false) for {self.path}"
+                )
+            file = self._data_file(MESO_FILE)
+            if not file.is_file():
+                raise FileNotFoundError(
+                    f"Meso file {file.name} is missing ({file})"
+                )
+            self._meso = SpeciesMesoSpatialFile(file)
         return self._meso
 
     def _read_metadata(self) -> pd.DataFrame:
-        return read_reactions_metadata(_require(self.path / REACTIONS_METADATA_FILE))
+        return read_reactions_metadata(_require(self._data_file(REACTIONS_METADATA_FILE)))
 
     def __repr__(self) -> str:
         return f"Dump({str(self.path)!r})"

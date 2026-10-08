@@ -10,6 +10,18 @@ from g4utils.DnaChem.dump import Dump
 from g4utils.DnaChem.dumps import find_dumps
 
 
+_EXTRA_COLUMNS = (
+    "chemistryModel",
+    "handOverTime_ns",
+    "chemistryEndTime_ns",
+    "voxelSize_nm",
+    "mesoPixels",
+    "mesoTimesPerDecade",
+    "mesoSpatialOutput",
+    "threads",
+)
+
+
 class Simulation:
     """A dnachem-min simulation folder: a set of Dump subruns.
 
@@ -46,7 +58,19 @@ class Simulation:
 
     def table(self) -> pd.DataFrame:
         """One row per Dump: name, labels and Manifest summary columns."""
-        return pd.DataFrame([dump._columns() for dump in self])
+        return pd.DataFrame([self._row(dump) for dump in self])
+
+    @staticmethod
+    def _row(dump: Dump) -> dict:
+        m = dump.manifest
+        base = dump._columns()
+        row = {"dump": base["dump"], **dump.labels}
+        row.update(base)
+        for key in _EXTRA_COLUMNS:
+            row[key] = getattr(m, key, None)
+        wall = [r.wallTime_s for r in m.runs if r.wallTime_s is not None]
+        row["wallTime_s"] = sum(wall) if wall else None
+        return row
 
     def __repr__(self) -> str:
         return f"Simulation({str(self.path)!r}, {len(self)} subruns)"

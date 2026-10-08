@@ -220,3 +220,64 @@ def test_show_without_ipython_raises(monkeypatch):
     monkeypatch.setitem(sys.modules, "IPython.display", None)
     with pytest.raises(ImportError, match="IPython"):
         Manifest.from_dict({"schemaVersion": 1}).show()
+
+
+# --- chemistry model fields ---------------------------------------------------
+
+
+def _model_manifest_dict():
+    return {
+        "schemaVersion": 1,
+        "chemistry": "BoscoloChem",
+        "scavengers": [{"species": "O2", "molarity_M": 0.00026}],
+        "chemistryModel": "hybrid",
+        "handOverTime_ns": 1.5,
+        "voxelSize_nm": 100.0,
+        "mesoPixels": 64,
+        "mesoTimesPerDecade": 10,
+        "mesoSpatialOutput": True,
+        "runs": [{"run": 0, "events": 5, "particle": "e-"}],
+        "futureKey": 3,
+    }
+
+
+def test_manifest_chemistry_model_fields():
+    m = Manifest.from_dict(_model_manifest_dict())
+    assert m.chemistryModel == "hybrid"
+    assert m.handOverTime_ns == 1.5
+    assert m.voxelSize_nm == 100.0
+    assert m.mesoPixels == 64
+    assert m.mesoTimesPerDecade == 10
+    assert m.mesoSpatialOutput is True
+    assert m.scavenger_molarity("O2") == 0.00026
+    assert len(m.runs) == 1
+    assert m.raw == {"futureKey": 3}
+
+
+def test_manifest_chemistry_model_absent_is_none():
+    m = Manifest.from_dict({"schemaVersion": 1})
+    assert m.chemistryModel is None
+    assert m.handOverTime_ns is None
+    assert m.mesoSpatialOutput is None
+    assert "Chemistry model" not in str(m)
+
+
+def test_manifest_chemistry_model_display():
+    m = Manifest.from_dict(_model_manifest_dict())
+    text = str(m)
+    html_out = m._repr_html_()
+    assert "Chemistry model" in text and "Chemistry model" in html_out
+    other_text = text.split("Other", 1)[1]
+    assert "futureKey" in other_text
+    assert "handOverTime_ns" not in other_text
+    other_html = html_out.split("<h4>Other</h4>", 1)[1]
+    assert "mesoPixels" not in other_html
+    assert "futureKey" in other_html
+
+
+def test_dump_columns_unchanged_by_model_fields():
+    cols = dump_columns(_model_manifest_dict(), "d")
+    assert set(cols) == {
+        "dump", "chemistry", "pH", "totalEvents", "totalEnergyDeposit_eV",
+        "O2_molarity_M", "particle", "beamEnergy_keV",
+    }

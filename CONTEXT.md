@@ -69,7 +69,8 @@ _Avoid_: bounding box (per-snapshot extents are not used by default)
 **Dump**:
 One folder of output written by a Geant4-DNA chemistry simulation (dnachem-min) in a
 single flush: species and reaction tallies, pre-chemical files, and exactly one
-**Manifest**. The unit that is loaded and compared (e.g. one O2 level of a scan).
+**Manifest**. A Dump may cover several `/run/beamOn` commands; each `/run/beamOn` is one
+**Manifest run**. The unit that is loaded and compared (e.g. one O2 level of a scan).
 _Avoid_: "run" (a Geant4 run is one `/run/beamOn`; a Dump may cover several),
 "case", "simulation".
 
@@ -86,9 +87,11 @@ an HDF5 file.
 _Avoid_: bare "subrun" in prose (Vox term).
 
 **Manifest**:
-The `Manifest.json` inside a Dump: what was simulated (beam per run, Chemistry,
+The `Manifest.json` file inside a Dump: what was simulated (beam per run, Chemistry,
 scavengers, pH), the totals (events, energy deposit) and the files produced. Source
-of truth for a Dump's physical parameters.
+of truth for a Dump's physical parameters. The `Manifest.json` file itself is never
+prefixed; however, the Manifest's `prefix` field prefixes all data files (species,
+reactions, mesoscopic output) within the Dump folder. If absent or null, the prefix is empty.
 _Avoid_: "metadata" (collides with `ReactionsMetadata.csv`).
 
 **Manifest run**:

@@ -79,6 +79,12 @@ class Manifest:
     pH: float | None = None
     halfBox_um: float | None = None
     chemistryEndTime_ns: float | None = None
+    chemistryModel: str | None = None
+    handOverTime_ns: float | None = None
+    voxelSize_nm: float | None = None
+    mesoPixels: int | None = None
+    mesoTimesPerDecade: int | None = None
+    mesoSpatialOutput: bool | None = None
     runMode: str | None = None
     threads: int | None = None
     outputDirAsConfigured: str | None = None
@@ -178,6 +184,16 @@ def _summary(m: Manifest) -> dict:
     for sc in m.scavengers:
         value = "-" if sc.molarity_M is None else _fmt(sc.molarity_M)
         chemistry.append((f"{sc.species} molarity_M", value))
+    chemistry_model = _present(
+        [
+            ("chemistryModel", m.chemistryModel),
+            ("handOverTime_ns", m.handOverTime_ns),
+            ("voxelSize_nm", m.voxelSize_nm),
+            ("mesoPixels", m.mesoPixels),
+            ("mesoTimesPerDecade", m.mesoTimesPerDecade),
+            ("mesoSpatialOutput", m.mesoSpatialOutput),
+        ]
+    )
     totals = _present(
         [
             ("totalEvents", m.totalEvents),
@@ -198,6 +214,7 @@ def _summary(m: Manifest) -> dict:
     return {
         "Overview": overview,
         "Chemistry": chemistry,
+        "Chemistry model": chemistry_model,
         "Totals": totals,
         "run_cols": run_cols,
         "run_rows": run_rows,
@@ -218,7 +235,7 @@ def _render_text(m: Manifest) -> str:
         width = max((len(k) for k, _ in pairs), default=0)
         return [f"  {k.ljust(width)}  {v}" for k, v in pairs]
 
-    for title in ("Overview", "Chemistry", "Totals"):
+    for title in ("Overview", "Chemistry", "Chemistry model", "Totals"):
         section(title, aligned(s[title]))
     cols, rows = s["run_cols"], s["run_rows"]
     if rows:
@@ -248,7 +265,7 @@ def _render_html(m: Manifest) -> str:
         )
         parts.append(f"<h4>{e(title)}</h4><table>{rows}</table>")
 
-    for title in ("Overview", "Chemistry", "Totals"):
+    for title in ("Overview", "Chemistry", "Chemistry model", "Totals"):
         kv_table(title, s[title])
     if s["run_rows"]:
         head = "".join(f"<th>{e(c)}</th>" for c in s["run_cols"])

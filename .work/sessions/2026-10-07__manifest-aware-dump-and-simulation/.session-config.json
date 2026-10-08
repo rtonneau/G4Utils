@@ -1,0 +1,226 @@
+{
+  "session_id": "2026-10-07__manifest-aware-dump-and-simulation",
+  "feature_name": "manifest-aware-dump-and-simulation",
+  "scratch_dir": ".scratch/tests/2026-10-07__manifest-aware-dump-and-simulation",
+  "created_at": "2026-10-07T20:59:48.932Z",
+  "template_version": 2,
+  "history": [
+    {
+      "at": "2026-10-07T20:59:48.932Z",
+      "event": "session_started",
+      "phase": "grill",
+      "files": [
+        "01-grill/resume.md"
+      ]
+    },
+    {
+      "at": "2026-10-07T21:08:29.750Z",
+      "event": "auto_started",
+      "phase": "grill",
+      "detail": {
+        "target": "finish",
+        "steps": "write:grill → plan → write:plan → ship → finish",
+        "shipMode": "subagent+inline"
+      }
+    },
+    {
+      "at": "2026-10-07T21:08:48.141Z",
+      "event": "grill_written",
+      "phase": "plan-not-started",
+      "files": [
+        "01-grill/resume.md"
+      ]
+    },
+    {
+      "at": "2026-10-07T21:08:48.243Z",
+      "event": "plan_started",
+      "phase": "plan",
+      "files": [
+        "02-plan/plan.md"
+      ]
+    },
+    {
+      "at": "2026-10-07T21:09:05.958Z",
+      "event": "branch_created",
+      "phase": "plan",
+      "detail": {
+        "branch": "feat/manifest-aware-dump",
+        "base": "main"
+      }
+    },
+    {
+      "at": "2026-10-07T21:09:05.983Z",
+      "event": "plan_written",
+      "phase": "ship",
+      "files": [
+        "02-plan/plan.md",
+        "02-plan/tickets/01-manifest-model-fields.md",
+        "02-plan/tickets/02-dump-manifest-files.md",
+        "02-plan/tickets/03-richer-simulation-table.md",
+        "02-plan/tickets/04-docs.md"
+      ],
+      "detail": {
+        "tickets": 4
+      }
+    },
+    {
+      "at": "2026-10-07T21:09:06.838Z",
+      "event": "ticket_started",
+      "phase": "ship",
+      "files": [
+        "02-plan/tickets/01-manifest-model-fields.md",
+        "03-implement/01-manifest-model-fields/commit-log.md"
+      ],
+      "detail": {
+        "ticket": "01-manifest-model-fields"
+      }
+    },
+    {
+      "at": "2026-10-07T21:10:03.873Z",
+      "event": "ticket_done",
+      "phase": "ship",
+      "files": [
+        "03-implement/01-manifest-model-fields/commit-log.md"
+      ],
+      "detail": {
+        "ticket": "01-manifest-model-fields",
+        "commit": "9a283d6"
+      }
+    },
+    {
+      "at": "2026-10-07T21:10:07.558Z",
+      "event": "ticket_started",
+      "phase": "ship",
+      "files": [
+        "02-plan/tickets/02-dump-manifest-files.md",
+        "03-implement/02-dump-manifest-files/commit-log.md"
+      ],
+      "detail": {
+        "ticket": "02-dump-manifest-files"
+      }
+    },
+    {
+      "at": "2026-10-07T21:10:50.201Z",
+      "event": "ticket_blocked",
+      "phase": "ship",
+      "files": [
+        "03-implement/02-dump-manifest-files/commit-log.md"
+      ],
+      "detail": {
+        "ticket": "02-dump-manifest-files",
+        "reason": "Dump/Simulation exist only on unmerged PR #8 (feat/dnachem-simulation-accessor); this branch was cut from main without them"
+      }
+    },
+    {
+      "at": "2026-10-07T21:14:08.404Z",
+      "event": "auto_started",
+      "phase": "ship",
+      "detail": {
+        "target": "finish",
+        "steps": "ship → finish",
+        "shipMode": "subagent+inline"
+      }
+    },
+    {
+      "at": "2026-10-07T21:16:27.914Z",
+      "event": "ticket_done",
+      "phase": "ship",
+      "files": [
+        "03-implement/02-dump-manifest-files/commit-log.md"
+      ],
+      "detail": {
+        "ticket": "02-dump-manifest-files",
+        "commit": "bd32af1"
+      }
+    },
+    {
+      "at": "2026-10-07T21:16:31.402Z",
+      "event": "ticket_started",
+      "phase": "ship",
+      "files": [
+        "02-plan/tickets/03-richer-simulation-table.md",
+        "03-implement/03-richer-simulation-table/commit-log.md"
+      ],
+      "detail": {
+        "ticket": "03-richer-simulation-table"
+      }
+    },
+    {
+      "at": "2026-10-07T21:17:27.562Z",
+      "event": "ticket_done",
+      "phase": "ship",
+      "files": [
+        "03-implement/03-richer-simulation-table/commit-log.md"
+      ],
+      "detail": {
+        "ticket": "03-richer-simulation-table",
+        "commit": "6dffd49"
+      }
+    },
+    {
+      "at": "2026-10-07T21:17:28.283Z",
+      "event": "ticket_started",
+      "phase": "ship",
+      "files": [
+        "02-plan/tickets/04-docs.md",
+        "03-implement/04-docs/commit-log.md"
+      ],
+      "detail": {
+        "ticket": "04-docs"
+      }
+    },
+    {
+      "at": "2026-10-07T21:19:18.728Z",
+      "event": "ticket_done",
+      "phase": "finish-pending",
+      "files": [
+        "03-implement/04-docs/commit-log.md"
+      ],
+      "detail": {
+        "ticket": "04-docs",
+        "commit": "d870a67"
+      }
+    },
+    {
+      "at": "2026-10-07T21:19:26.753Z",
+      "event": "changelog_written",
+      "phase": "finish-pending",
+      "detail": {
+        "bump": "minor"
+      }
+    },
+    {
+      "at": "2026-10-07T21:19:32.931Z",
+      "event": "pr_opened",
+      "phase": "finish-pending",
+      "detail": {
+        "url": "https://github.com/rtonneau/G4Utils/pull/9"
+      }
+    },
+    {
+      "at": "2026-10-07T21:19:32.935Z",
+      "event": "session_finished",
+      "phase": "finished",
+      "files": [
+        "INDEX.md"
+      ]
+    }
+  ],
+  "current_phase": "finished",
+  "git": {
+    "branch": "feat/manifest-aware-dump",
+    "base_branch": "main",
+    "branch_created_at": "2026-10-07T21:09:05.958Z",
+    "pr_url": "https://github.com/rtonneau/G4Utils/pull/9"
+  },
+  "ship_mode": "subagent+inline",
+  "changelog": {
+    "bump": "minor",
+    "floor": "minor",
+    "reason": null,
+    "bullets": 3,
+    "path": ".work/changelog/2026-10-07__manifest-aware-dump-and-simulation.md",
+    "written_at": "2026-10-07T21:19:26.744Z"
+  },
+  "finished_at": "2026-10-07T21:19:32.935Z"
+}
