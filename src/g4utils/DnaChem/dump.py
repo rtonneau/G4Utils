@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import re
+import math
 from pathlib import Path
 from typing import TYPE_CHECKING
 
@@ -9,6 +10,10 @@ import pandas as pd
 from g4utils.DnaChem.dumps import MANIFEST_NAME, _relative_file, parse_dump_name
 from g4utils.DnaChem.manifest import Manifest, _parse_manifest_file, dump_columns
 from g4utils.DnaChem.ntuple import read_ntuple
+from g4utils.DnaChem.readers import (
+    read_physical_interactions, read_track_lengths, validate_track_summary,
+    warn_track_event_count,
+)
 from g4utils.DnaChem.species_names import short_name
 
 if TYPE_CHECKING:
@@ -18,6 +23,8 @@ SPECIES_FILE = "Species_nt_species.csv"
 REACTIONS_FILE = "Reactions_nt_reactions.csv"
 REACTIONS_METADATA_FILE = "ReactionsMetadata.csv"
 MESO_FILE = "SpeciesMesoSpatial.h5"
+PHYSICAL_INTERACTIONS_FILE = "PhysicsInteractions.csv"
+TRACK_LENGTHS_FILE = "TrackLengths.csv"
 
 
 def _require(file: Path) -> Path:
@@ -206,6 +213,34 @@ class Dump:
             df["time_s"] = df.pop("time") * 1e-9
             self._reactions = df.assign(**self._columns())
         return self._reactions
+
+    def physical_interactions(self, *, per_event: bool = False) -> pd.DataFrame:
+        """Raw process firing totals; optionally add mean firings per event.
+
+        ``count`` is dimensionless. ``count_per_event`` divides by the
+        manifest's finite positive ``totalEvents`` only when requested.
+        """
+        file = _require(self._data_file(PHYSICAL_INTERACTIONS_FILE))
+        if per_event:
+            total = self.manifest.totalEvents
+            if (isinstance(total, bool) or not isinstance(total, (int, float))
+                    or not math.isfinite(total) or total <= 0):
+                raise ValueError(
+                    f"{self.manifest_path}: totalEvents must be finite and positive "
+                    "for count_per_event"
+                )
+        frame = read_physical_interactions(file).assign(**self._columns())
+        if per_event:
+            frame["count_per_event"] = (frame["count"] / total).astype("float64")
+        return frame
+
+    def track_lengths(self) -> pd.DataFrame:
+        """One non-aborted event per row; lengths in nm, energies in keV."""
+        file = _require(self._data_file(TRACK_LENGTHS_FILE))
+        frame = read_track_lengths(file)
+        validate_track_summary(frame, self.manifest.raw.get("trackLengths"), file)
+        warn_track_event_count(frame, self.manifest.totalEvents, file)
+        return frame.assign(**self._columns())
 
     def reaction_table(self) -> pd.DataFrame:
         """One row per reaction, with Short-name equation and species counts."""

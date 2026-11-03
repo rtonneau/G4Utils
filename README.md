@@ -212,6 +212,9 @@ dump.has_meso         # True if meso output enabled and SpeciesMesoSpatial.h5 ex
 species = dump.species()          # same frame as load_species() gives for this Dump
 dump.reactions()                  # reaction counts
 dump.reaction_table()             # one row per reaction
+dump.physical_interactions()      # raw process firing totals
+dump.physical_interactions(per_event=True)  # also mean firings per event
+dump.track_lengths()              # one row per non-aborted event
 dump.manifest                     # parsed Manifest
 
 meso = dump.meso                  # SpeciesMesoSpatialFile (SpeciesMesoSpatial.h5)
@@ -222,6 +225,14 @@ meso = dump.meso                  # SpeciesMesoSpatialFile (SpeciesMesoSpatial.h
 `Simulation.table()` provides one row per Dump with columns including `dump` (the folder name), `dump_key`, `manifest_path`, `prefix`, one column per Name pattern group, and Manifest summary fields such as `chemistryModel`, `handOverTime_ns`, `chemistryEndTime_ns`, `voxelSize_nm`, `mesoPixels`, `mesoTimesPerDecade`, `mesoSpatialOutput`, `threads`, and `wallTime_s` (total wall time across all runs in the Dump).
 
 `load_species()`, `load_reactions()` and `load_reaction_table()` below are built on these classes. A missing data file raises `FileNotFoundError` naming the file.
+
+### Physical interactions and track lengths
+
+`Dump.physical_interactions(*, per_event=False)` reads `PhysicsInteractions.csv` with the writer's raw `label` strings and integer `count` values. Counts are dimensionless process firing totals for the dump. With `per_event=True`, it adds `count_per_event = count / manifest.totalEvents`, a mean number of firings per event. This requires a finite positive event total. It is not a G value.
+
+`Dump.track_lengths()` reads `TrackLengths.csv` with the writer's ten fields: `run`, `event`, `primaryLength_nm`, `primaryEkin0_keV`, `primaryEkinEnd_keV`, `primaryEnd`, `secondaryFirstGen_nm`, `nSecondaryFirstGen`, `secondaryAll_nm`, and `nSecondaryAll`. The `(run, event)` pair identifies an event. Lengths are nm, primary kinetic energies are keV, and secondary counts are integers. `primaryEnd` is `stopped`, `escaped`, or `killed`. Rows have no event normalization. Both readers add the Dump's provenance and summary columns, including `dump`, `dump_key`, `manifest_path`, and `prefix`.
+
+Readers select the CSV through the chosen manifest's file inventory and literal prefix. Missing CSVs raise `FileNotFoundError` with the resolved path; TXT files are not substituted. A header-only CSV returns typed empty columns. The track reader checks the available `trackLengths` manifest events, end counts, means, and SEMs against the rows within writer rounding precision. If its row count differs from `totalEvents`, it warns because events may have been aborted or omitted.
 
 ### Columns added by loaders
 
