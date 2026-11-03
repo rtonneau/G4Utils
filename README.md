@@ -13,17 +13,28 @@ The package provides lazy per-subrun loading, quantity/subrun selection, sums ov
 
 ## Installation
 
-Install from a clone of the repository:
+Use Python 3.10 or newer. Installation includes numpy >= 1.24, pandas >= 2.0,
+and h5py >= 3.8; reading existing output does not require a Geant4 installation.
+Install from a clone of the repository using the intended Python environment:
 
 ```bash
-pip install .
+python -m pip install .
 ```
 
 Or, for development, as an editable install with dev dependencies:
 
 ```bash
-pip install -e ".[dev]"
+python -m pip install -e ".[dev]"
 ```
+
+For a notebook, install G4Utils in the environment selected by its kernel.
+For example, after `conda activate GEANT4`, run the editable installation above
+from this checkout. Plotting and Jupyter are optional, separate dependencies:
+`python -m pip install matplotlib ipykernel`. In a notebook cell, verify
+`sys.executable` and `g4utils.__file__` before reading data. An existing kernel
+must be restarted after library changes to load the updated modules.
+An editable install follows the checkout's current branch; select the branch
+or merged revision containing the APIs you intend to use before restarting.
 
 ## Quick Start
 
@@ -539,21 +550,51 @@ Clone and install in editable mode with dev dependencies:
 ```bash
 git clone https://github.com/rtonneau/G4Utils.git
 cd G4Utils
-pip install -e ".[dev]"
+python -m pip install -e ".[dev]"
 ```
 
 ### Testing
 
-Run the test suite:
+The regular suite uses small generated fixtures and requires no simulation
+output. Run it in the environment where G4Utils is installed:
 
 ```bash
-pytest
+python -m pytest tests -q
 ```
+
+For opt-in comparisons against your own dnachem-min output, use
+[`tests/validate_dnachem_output.py`](tests/validate_dnachem_output.py):
+
+```bash
+python tests/validate_dnachem_output.py --help
+python tests/validate_dnachem_output.py --irt-dump /data/irt --meso-dump /data/meso-spatial --discovery-root /data/results --explicit-manifest /data/historical/EndOfRun_Manifest.json --output .scratch/validation.json
+```
+
+The two demo arguments accept dump directories or selected manifest paths.
+Both require physical, track, pre-chemical and particle-species output; the
+mesoscopic demo also requires aggregate CSV/TXT and the spatial HDF5 file.
+Repeat `--discovery-root` for indexed, shared-folder prefixed, and nested
+results, and `--explicit-manifest` for dumps outside automatic selection.
+The script compares all raw CSV fields, fixed-width pre-chemical records and
+null positions, particle G calculations, and mesoscopic CSV/TXT normalization.
+Discovery checks compare manifest order, stable keys, each selected species
+table and provenance; recursive inventory reports dumps outside the documented
+selection rules without silently extending them.
+
+Optional `--expected-irt-records 2152 --expected-irt-final-electrons 999`
+compares the original two-event report baseline. A mismatch is recorded as
+`changed_data_discrepancy`, while raw-value mismatches fail the script. Those
+counts are observations, not assumptions about other or regenerated runs.
+JSON evidence records paths, input SHA-256 hashes, package versions and
+editable-install metadata. Keep generated data and evidence outside Git (for
+example under the ignored `.scratch/`). The script does not run a simulation.
+It checks spatial-file availability, not HDF5 contents or scientific validity;
+it leaves the particle SEM assertion disabled.
 
 With coverage report:
 
 ```bash
-pytest --cov=g4utils --cov-report=term-missing
+python -m pytest --cov=g4utils --cov-report=term-missing
 ```
 
 ## License
