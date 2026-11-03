@@ -10,6 +10,7 @@ import pandas as pd
 from g4utils.DnaChem.dumps import MANIFEST_NAME, _relative_file, parse_dump_name
 from g4utils.DnaChem.manifest import Manifest, _parse_manifest_file, dump_columns
 from g4utils.DnaChem.ntuple import read_ntuple
+from g4utils.DnaChem.prechemical import read_prechemical_records
 from g4utils.DnaChem.readers import (
     read_physical_interactions, read_track_lengths, validate_track_summary,
     warn_track_event_count,
@@ -240,6 +241,19 @@ class Dump:
         frame = read_track_lengths(file)
         validate_track_summary(frame, self.manifest.raw.get("trackLengths"), file)
         warn_track_event_count(frame, self.manifest.totalEvents, file)
+        return frame.assign(**self._columns())
+
+    def prechemical_records(self, *, allow_missing: bool = False) -> pd.DataFrame:
+        """Pre-chemical records in nm/eV, retaining raw codes and null positions.
+
+        Use the manifest inventory when present; otherwise scan this directory
+        for this literal prefix. Listed missing files always raise, even when
+        absent optional output is allowed with ``allow_missing=True``.
+        """
+        frame = read_prechemical_records(
+            self.manifest_path, self.prefix, self.manifest.files,
+            allow_missing=allow_missing,
+        )
         return frame.assign(**self._columns())
 
     def reaction_table(self) -> pd.DataFrame:

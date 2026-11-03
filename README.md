@@ -215,6 +215,7 @@ dump.reaction_table()             # one row per reaction
 dump.physical_interactions()      # raw process firing totals
 dump.physical_interactions(per_event=True)  # also mean firings per event
 dump.track_lengths()              # one row per non-aborted event
+dump.prechemical_records()        # pre-chemical records with nullable final positions
 dump.manifest                     # parsed Manifest
 
 meso = dump.meso                  # SpeciesMesoSpatialFile (SpeciesMesoSpatial.h5)
@@ -233,6 +234,37 @@ meso = dump.meso                  # SpeciesMesoSpatialFile (SpeciesMesoSpatial.h
 `Dump.track_lengths()` reads `TrackLengths.csv` with the writer's ten fields: `run`, `event`, `primaryLength_nm`, `primaryEkin0_keV`, `primaryEkinEnd_keV`, `primaryEnd`, `secondaryFirstGen_nm`, `nSecondaryFirstGen`, `secondaryAll_nm`, and `nSecondaryAll`. The `(run, event)` pair identifies an event. Lengths are nm, primary kinetic energies are keV, and secondary counts are integers. `primaryEnd` is `stopped`, `escaped`, or `killed`. Rows have no event normalization. Both readers add the Dump's provenance and summary columns, including `dump`, `dump_key`, `manifest_path`, and `prefix`.
 
 Readers select the CSV through the chosen manifest's file inventory and literal prefix. Missing CSVs raise `FileNotFoundError` with the resolved path; TXT files are not substituted. A header-only CSV returns typed empty columns. The track reader checks the available `trackLengths` manifest events, end counts, means, and SEMs against the rows within writer rounding precision. If its row count differs from `totalEvents`, it warns because events may have been aborted or omitted.
+
+### Pre-chemical event records
+
+`Dump.prechemical_records(*, allow_missing=False)` returns `run`, `event`,
+`parent_id`, `molecule`, `electron_modification`, `energy_eV`, `parent_x_nm`,
+`parent_y_nm`, `parent_z_nm`, `x_nm`, `y_nm`, and `z_nm`, plus the Dump's
+provenance and summary columns. IDs are integers, molecule and modification
+codes are raw strings, and numeric fields are floating point. Final coordinates
+use pandas nullable `Float64`: missing coordinates remain null for water and
+electron records alike and are never filled from parent positions. Rows are
+records, without event normalization; positions are nm and energy is eV.
+
+Files must be named `<prefix>PreChemical_run<R>_event<E>.txt`. Selection uses
+the manifest's `files` inventory and exact literal prefix, then sorts numerically
+by `(run, event)`. Listed paths are relative to the selected manifest and may
+be nested. An inventory, including an empty list, is authoritative: unlisted
+files and other prefixes are not consumed. Only if `files` is absent or null
+does the reader scan the manifest's immediate directory for its prefix; it
+does not recurse into other dumps or staging folders. Missing selected files
+always raise. If no files are selected, the default error explains regeneration;
+`allow_missing=True` instead returns typed empty columns. A valid empty or
+comment-only event file also returns a typed empty frame without this option.
+
+The observed text layout uses widths `[11,10,14,13,22,22,22,14,14,14]` for
+the ten fields starting at `parent_id`. Blank lines and `#` comments are ignored.
+Required fields, finite numeric values, unambiguous filenames, and unique
+run/event files are checked; final coordinate fields may be blank. This layout
+was observed in Geant4 11.4.3 output while the configured source was 11.4.1.
+It is not matched-source semantic verification. Modification codes receive no
+scientific labels in G4Utils; interpretation needs source verification against
+the version that generated the data.
 
 ### Columns added by loaders
 
