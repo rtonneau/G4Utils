@@ -12,7 +12,7 @@ from g4utils.DnaChem.manifest import Manifest, _parse_manifest_file, dump_column
 from g4utils.DnaChem.ntuple import read_ntuple
 from g4utils.DnaChem.prechemical import read_prechemical_records
 from g4utils.DnaChem.readers import (
-    read_physical_interactions, read_track_lengths, validate_track_summary,
+    read_meso_species, read_physical_interactions, read_track_lengths, validate_track_summary,
     warn_track_event_count,
 )
 from g4utils.DnaChem.species_names import short_name
@@ -24,6 +24,7 @@ SPECIES_FILE = "Species_nt_species.csv"
 REACTIONS_FILE = "Reactions_nt_reactions.csv"
 REACTIONS_METADATA_FILE = "ReactionsMetadata.csv"
 MESO_FILE = "SpeciesMesoSpatial.h5"
+MESO_SPECIES_FILE = "SpeciesMeso.csv"
 PHYSICAL_INTERACTIONS_FILE = "PhysicsInteractions.csv"
 TRACK_LENGTHS_FILE = "TrackLengths.csv"
 
@@ -190,6 +191,48 @@ class Dump:
             self.manifest.mesoSpatialOutput is not False
             and self._data_file(MESO_FILE).is_file()
         )
+
+    def _meso_species_enabled(self) -> bool:
+        # Modern manifests supply a validated boolean. Historical manifests
+        # qualify only by the writer's explicit combined model name.
+        enabled = self.manifest.mesoEnabled
+        return enabled if enabled is not None else (
+            self.manifest.chemistryModel == "IRT_syn+mesoscopic"
+        )
+
+    @property
+    def has_meso_species(self) -> bool:
+        """True when the mesoscopic stage is enabled and its aggregate CSV exists."""
+        return self._meso_species_enabled() and self._data_file(MESO_SPECIES_FILE).is_file()
+
+    def meso_species(self) -> pd.DataFrame:
+        """Summed molecule counts and mean counts per event; these are not G values.
+
+        Preserve raw species names, ns record times and manifest stage times.
+        Availability is independent of the spatial HDF5 output.
+        """
+        if not self._meso_species_enabled():
+            raise FileNotFoundError(
+                f"Mesoscopic species output is disabled or not enabled by "
+                f"{self.manifest_path} (mesoEnabled or legacy chemistryModel)"
+            )
+        file = self._data_file(MESO_SPECIES_FILE)
+        if not file.is_file():
+            raise FileNotFoundError(f"Missing expected mesoscopic species CSV {file}")
+        total = self.manifest.totalEvents
+        if (isinstance(total, bool) or not isinstance(total, (int, float))
+                or not math.isfinite(total) or total <= 0):
+            raise ValueError(
+                f"{self.manifest_path}: totalEvents must be finite and positive "
+                "for mean_count_per_event"
+            )
+        frame = read_meso_species(file)
+        frame["mean_count_per_event"] = (frame["count"] / total).astype("float64")
+        metadata = self._columns() | {
+            "handOverTime_ns": self.manifest.handOverTime_ns,
+            "chemistryEndTime_ns": self.manifest.chemistryEndTime_ns,
+        }
+        return frame.assign(**metadata)
 
     def _columns(self) -> dict:
         return dump_columns(self.manifest, self.name) | self.labels | self._provenance()

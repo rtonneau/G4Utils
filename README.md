@@ -208,6 +208,7 @@ dump = sim.subrun("run_21pO2/Manifest.json")  # canonical manifest key
 dump.files            # tuple of file names listed in Manifest
 dump.prefix           # data file prefix from Manifest (empty if absent)
 dump.has_meso         # True if meso output enabled and SpeciesMesoSpatial.h5 exists
+dump.has_meso_species # True if the mesoscopic stage is enabled and SpeciesMeso.csv exists
 
 species = dump.species()          # same frame as load_species() gives for this Dump
 dump.reactions()                  # reaction counts
@@ -216,6 +217,7 @@ dump.physical_interactions()      # raw process firing totals
 dump.physical_interactions(per_event=True)  # also mean firings per event
 dump.track_lengths()              # one row per non-aborted event
 dump.prechemical_records()        # pre-chemical records with nullable final positions
+dump.meso_species()               # summed mesoscopic molecules and mean counts per event
 dump.manifest                     # parsed Manifest
 
 meso = dump.meso                  # SpeciesMesoSpatialFile (SpeciesMesoSpatial.h5)
@@ -265,6 +267,35 @@ was observed in Geant4 11.4.3 output while the configured source was 11.4.1.
 It is not matched-source semantic verification. Modification codes receive no
 scientific labels in G4Utils; interpretation needs source verification against
 the version that generated the data.
+
+### Aggregate mesoscopic species
+
+`Dump.meso_species()` reads `SpeciesMeso.csv`, returning `time_ns` (ns),
+`species` (the raw string), `count` (summed integer molecules), and
+`mean_count_per_event = count / manifest.totalEvents` (molecules per event).
+For example, 97 `H2O2^0` molecules over two events gives 48.5 molecules per
+event. These are count curves, distinct from particle G values in molecules
+per 100 eV. Species spelling is preserved without mapping to particle-stage
+names. The frame includes Dump provenance and summary columns, plus
+`handOverTime_ns` and `chemistryEndTime_ns` copied from the manifest.
+
+`Dump.has_meso_species` requires both enabled mesoscopic output and an existing
+resolved CSV. It is independent of `Dump.has_meso`, which refers to spatial
+HDF5. Modern manifests must provide a boolean `mesoEnabled`; that flag takes
+precedence over `chemistryModel`. For historical manifests **without**
+`mesoEnabled`, only the exact recorded `chemistryModel: "IRT_syn+mesoscopic"`
+enables this reader. Missing or unknown models do not establish enablement;
+neither spatial HDF5 presence nor `mesoSpatialOutput` supplies it. An explicit
+null or nonboolean `mesoEnabled` is a malformed manifest.
+
+Disabled or unconfirmed output raises `FileNotFoundError` explaining that
+status. Enabled output with a missing CSV instead raises a missing-expected-file
+error naming the selected path. Inventory and literal-prefix resolution follow
+the other readers; TXT output is not substituted. Header-only CSVs return typed
+empty frames, including when the end time is at or before hand-over. The
+reader validates the exact `time_ns,species,count` header, finite nonnegative
+times, nonempty species names, nonnegative integer counts, and a finite positive
+`totalEvents` denominator even for empty output.
 
 ### Columns added by loaders
 

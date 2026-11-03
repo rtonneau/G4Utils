@@ -83,6 +83,7 @@ class Manifest:
     voxelSize_nm: float | None = None
     mesoPixels: int | None = None
     mesoTimesPerDecade: int | None = None
+    mesoEnabled: bool | None = None
     mesoSpatialOutput: bool | None = None
     runMode: str | None = None
     threads: int | None = None
@@ -101,6 +102,8 @@ class Manifest:
         if not isinstance(data, dict):
             raise ValueError("manifest must be a JSON object")
         _literal_prefix(data.get("prefix"), "manifest")
+        if "mesoEnabled" in data and not isinstance(data["mesoEnabled"], bool):
+            raise ValueError("mesoEnabled must be a boolean when present")
         for key in ("runs", "scavengers", "files"):
             value = data.get(key)
             item_type = str if key == "files" else dict
@@ -201,6 +204,7 @@ def _summary(m: Manifest) -> dict:
             ("voxelSize_nm", m.voxelSize_nm),
             ("mesoPixels", m.mesoPixels),
             ("mesoTimesPerDecade", m.mesoTimesPerDecade),
+            ("mesoEnabled", m.mesoEnabled),
             ("mesoSpatialOutput", m.mesoSpatialOutput),
         ]
     )

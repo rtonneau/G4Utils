@@ -12,6 +12,7 @@ import pandas as pd
 
 
 PHYSICAL_COLUMNS = ("label", "count")
+MESO_SPECIES_COLUMNS = ("time_ns", "species", "count")
 TRACK_COLUMNS = (
     "run", "event", "primaryLength_nm", "primaryEkin0_keV",
     "primaryEkinEnd_keV", "primaryEnd", "secondaryFirstGen_nm",
@@ -75,6 +76,21 @@ def read_physical_interactions(file: Path) -> pd.DataFrame:
     return pd.DataFrame(
         {"label": pd.Series((r[0] for r in records), dtype="string"),
          "count": pd.Series((r[1] for r in records), dtype="int64")}
+    )
+
+
+def read_meso_species(file: Path) -> pd.DataFrame:
+    """Read summed molecule counts at mesoscopic record times (ns)."""
+    records = []
+    for line, row in _rows(file, MESO_SPECIES_COLUMNS):
+        time = _nonnegative_float(row[0], file, line, "time_ns")
+        if not row[1].strip():
+            raise ValueError(f"{file}:{line}: species must not be empty")
+        records.append((time, row[1], _integer(row[2], file, line, "count")))
+    return pd.DataFrame(
+        {"time_ns": pd.Series((r[0] for r in records), dtype="float64"),
+         "species": pd.Series((r[1] for r in records), dtype="string"),
+         "count": pd.Series((r[2] for r in records), dtype="int64")}
     )
 
 
