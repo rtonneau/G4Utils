@@ -170,11 +170,31 @@ g_by_time = df.pivot_table(
 )
 ```
 
-`path` is either one Dump folder (it contains `Manifest.json`) or a parent folder: every direct subfolder with a `Manifest.json` is loaded, other files and folders are ignored. Species are identified by name, never by numeric ID.
+`path` may be a Dump folder, a selected manifest file, a results directory, or a simulation folder containing `results/`. Discovery follows a results index when present, including prefixed and nested dumps. Species are identified by name, never by numeric ID.
+
+### Discovering and selecting dumps
+
+```python
+from g4utils.DnaChem import Dump, discover_dumps
+
+locations = discover_dumps("results")
+for location in locations:
+    print(location.key, location.directory, location.manifest_path, location.prefix)
+
+dump = Dump.from_manifest("results/EndOfRun_Manifest.json")
+```
+
+Each frozen `DumpLocation` identifies one manifest. Its key is the resolved manifest path relative to the discovery root, using `/` separators: for example `Manifest.json`, `pfx_Manifest.json`, or `nested/run02/Manifest.json`. Adding siblings does not change existing keys. Paths are resolved on the current machine; stale `outputDirAbsolute` and `outputDirAsConfigured` metadata are not used to locate files.
+
+When root `Manifest.json` has `kind: "resultsIndex"` or a `dumps` array, discovery follows its entries in order. A plain dump's manifest may also hold that array and reference itself; this dump is included once at its indexed position. Each entry must provide string `folder`, `prefix`, and `manifest` fields. Missing manifests, duplicate keys, malformed entries, folder/prefix mismatches and paths escaping the index directory (including resolved symlinks) raise contextual errors. Both `/` and `\\` work in relative paths. An index cannot itself be selected as a dump unless it also represents a plain dump (without `kind: "resultsIndex"`). Index event totals are discovery hints; each selected dump manifest supplies the calculation metadata.
+
+Without an index, an ordinary root `Manifest.json` keeps the legacy single-dump behavior. Otherwise discovery scans `*Manifest.json` at the root and in direct child directories, sorting root files first and then children by name. Within each direct child, a plain `Manifest.json` takes precedence: its index is followed if present, otherwise it selects that one dump. This also supports historical prefixed output without an index. It does not recursively scan deeper directories; deeper dumps need explicit index references. An empty discovery raises `FileNotFoundError`. `find_dumps()` retains its original `list[Path]` folder result and plain-`Manifest.json` single/direct-child search.
+
+`Dump(path)` continues to select only `path/Manifest.json`. `Dump.from_manifest(path, name_pattern=None)` explicitly selects a manifest, including a prefixed one or a plain manifest that also contains an index. Both defer data loading until needed; an index-only manifest is rejected on first manifest or data access. Data paths listed in the selected manifest's `files` are literal, relative to that manifest's directory; they may already contain the prefix. For conventional files not listed there, readers prepend the selected manifest's literal `prefix` (empty if absent or null), even when it overlaps the start of a conventional filename. A listed file that is missing raises with its selected path; another file on disk is never substituted. Data paths must stay within the manifest directory after resolving symlinks.
 
 ### Opening a simulation folder
 
-`Simulation` opens a dnachem-min folder without reading any data file. `path` is a flat Dump folder, a `results` folder holding Dumps, or a simulation folder with a `results/` subfolder. Each Dump is a lazy `Dump`: its tables and its meso file load on first access and are cached.
+`Simulation` opens a dnachem-min folder by reading its manifests without reading data files. `path` is a flat Dump folder, a selected manifest file, a `results` folder holding Dumps, or a simulation folder with a `results/` subfolder. Each Dump is a lazy `Dump`: its tables and its meso file load on first access and are cached.
 
 ```python
 from g4utils.DnaChem import Simulation
@@ -183,7 +203,8 @@ sim = Simulation("path/to/simulation", name_pattern=r"run_(?P<o2_percent>[\dp]+)
 print(sim)            # Simulation('.../results', 3 subruns)
 sim.table()           # one row per subrun: name, labels, Manifest summary columns
 
-dump = sim.subrun("run_21pO2")   # pick a subrun by folder name (KeyError lists the names)
+dump = sim.subrun("run_21pO2/Manifest.json")  # canonical manifest key
+# sim.subrun("run_21pO2") and sim.subruns["run_21pO2"] also work if unambiguous
 dump.files            # tuple of file names listed in Manifest
 dump.prefix           # data file prefix from Manifest (empty if absent)
 dump.has_meso         # True if meso output enabled and SpeciesMesoSpatial.h5 exists
@@ -196,7 +217,9 @@ dump.manifest                     # parsed Manifest
 meso = dump.meso                  # SpeciesMesoSpatialFile (SpeciesMesoSpatial.h5)
 ```
 
-`Simulation.table()` provides one row per Dump with columns including `dump` (the folder name), one column per Name pattern group, and Manifest summary fields such as `chemistryModel`, `handOverTime_ns`, `chemistryEndTime_ns`, `voxelSize_nm`, `mesoPixels`, `mesoTimesPerDecade`, `mesoSpatialOutput`, `threads`, and `wallTime_s` (total wall time across all runs in the Dump).
+`Simulation.subruns` is a mapping whose iteration, keys, values and length include each canonical key once. Folder-name lookup remains available when exactly one selected dump has that folder name; ambiguous aliases raise `KeyError` listing the manifest keys. `dump.name` and the `dump` column keep the folder label. `dump.key` is the discovery-relative key in a Simulation and the manifest filename for a standalone Dump. `dump.manifest_path` is the resolved selected manifest.
+
+`Simulation.table()` provides one row per Dump with columns including `dump` (the folder name), `dump_key`, `manifest_path`, `prefix`, one column per Name pattern group, and Manifest summary fields such as `chemistryModel`, `handOverTime_ns`, `chemistryEndTime_ns`, `voxelSize_nm`, `mesoPixels`, `mesoTimesPerDecade`, `mesoSpatialOutput`, `threads`, and `wallTime_s` (total wall time across all runs in the Dump).
 
 `load_species()`, `load_reactions()` and `load_reaction_table()` below are built on these classes. A missing data file raises `FileNotFoundError` naming the file.
 
@@ -207,6 +230,9 @@ meso = dump.meso                  # SpeciesMesoSpatialFile (SpeciesMesoSpatial.h
 - `time_s`: time in seconds (replaces the ns `time` column)
 - `G`: G value = number / (totalEnergyDeposit_eV / 100)
 - `dump`: Dump folder name
+- `dump_key`: canonical manifest key within the selected discovery root
+- `manifest_path`: resolved path of the selected manifest (distinct provenance even for shared folders)
+- `prefix`: literal prefix from that manifest
 - `chemistry`: Chemistry name from the Manifest (e.g. `BoscoloChem`)
 - `pH`: pH from Manifest
 - `totalEvents`: total events in the Dump
@@ -250,7 +276,7 @@ merged = reactions_data.merge(df, on="reactionId")
 
 ### Reading Manifests
 
-`read_manifest()` reads one `Manifest.json` file from a Dump folder, a single Manifest file, or a folder holding exactly one Dump:
+`read_manifest()` reads a selected manifest file, or uses the same discovery rules as `Simulation` for a folder that selects exactly one Dump. A folder selecting several dumps raises `ValueError`; use `load_manifests()` for one row per Manifest run across all selected dumps, including provenance columns. Explicit file selection stays on that manifest even if it also holds a `dumps` array:
 
 ```python
 from g4utils.DnaChem import read_manifest
@@ -312,7 +338,8 @@ manifest.show()  # display() using IPython
 
 ### Other utilities
 
-- `find_dumps()`: locate Dump folders by Manifest.json
+- `discover_dumps()`: locate selected manifests with stable keys, paths and prefixes
+- `find_dumps()`: legacy folder search by plain Manifest.json
 - `read_ntuple()`: parse Geant4 wcsv CSV ntuples
 - `short_name()` / `SHORT_NAMES`: map raw species names to short labels
 

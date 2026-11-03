@@ -67,9 +67,10 @@ _Avoid_: bounding box (per-snapshot extents are not used by default)
 ### DnaChem output
 
 **Dump**:
-One folder of output written by a Geant4-DNA chemistry simulation (dnachem-min) in a
-single flush: species and reaction tallies, pre-chemical files, and exactly one
-**Manifest**. A Dump may cover several `/run/beamOn` commands; each `/run/beamOn` is one
+One output flush written by a Geant4-DNA chemistry simulation (dnachem-min):
+species and reaction tallies, optional outputs, and one selected **Manifest**.
+Several Dumps can share a folder using distinct literal filename prefixes, or
+live in nested folders. A Dump may cover several `/run/beamOn` commands; each `/run/beamOn` is one
 **Manifest run**. The unit that is loaded and compared (e.g. one O2 level of a scan).
 _Avoid_: "run" (a Geant4 run is one `/run/beamOn`; a Dump may cover several),
 "case", "simulation".
@@ -77,8 +78,9 @@ _Avoid_: "run" (a Geant4 run is one `/run/beamOn`; a Dump may cover several),
 **Simulation folder**:
 The top folder of a whole dnachem-min simulation (e.g. one scan script's output): the
 executable, macros, console logs and a `results/` folder holding the **Dumps**. It
-holds no Manifest itself; each Dump has its own.
-_Avoid_: "Dump" (that is one subfolder of `results/`), "run".
+may have a results index at `results/Manifest.json`, while each Dump has its own
+manifest. A plain Dump can share the index's manifest path.
+_Avoid_: "Dump" (one output flush), "run".
 
 **Dump subrun**:
 In the Simulation-folder accessor's API, a Dump seen as one part of its Simulation
@@ -87,12 +89,23 @@ an HDF5 file.
 _Avoid_: bare "subrun" in prose (Vox term).
 
 **Manifest**:
-The `Manifest.json` file inside a Dump: what was simulated (beam per run, Chemistry,
+The selected `[prefix]Manifest.json` for a Dump: what was simulated (beam per run, Chemistry,
 scavengers, pH), the totals (events, energy deposit) and the files produced. Source
-of truth for a Dump's physical parameters. The `Manifest.json` file itself is never
-prefixed; however, the Manifest's `prefix` field prefixes all data files (species,
-reactions, mesoscopic output) within the Dump folder. If absent or null, the prefix is empty.
+of truth for a Dump's physical parameters. Its `prefix` is a literal filename
+prefix, empty if absent or null. The `files` list contains literal paths relative
+to the manifest's directory, often already prefixed. Historical manifests may
+use the plain filename even when data files have a prefix. A root `Manifest.json`
+can be a results index (`kind: "resultsIndex"` with `dumps` entries), or a plain
+Dump manifest with an added `dumps` array that includes itself. An index alone is
+not a Dump manifest and its event totals are not calculation metadata.
 _Avoid_: "metadata" (collides with `ReactionsMetadata.csv`).
+
+**Dump key**:
+The selected manifest's resolved path relative to its discovery root, with POSIX
+`/` separators. It distinguishes Dumps sharing a folder and stays unchanged when
+sibling Dumps are added. A standalone Dump uses its manifest filename. The
+`dump_key`, `manifest_path` and `prefix` columns preserve provenance; the legacy
+`dump` column and Name patterns still use the folder name.
 
 **Manifest run**:
 One entry of a Manifest's `runs` list: the beam, energy deposit, seed and wall time of

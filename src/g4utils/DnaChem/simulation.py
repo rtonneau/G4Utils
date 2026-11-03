@@ -1,13 +1,37 @@
 from __future__ import annotations
 
 import re
+from collections.abc import Mapping
 from pathlib import Path
 from typing import Iterator
 
 import pandas as pd
 
 from g4utils.DnaChem.dump import Dump
-from g4utils.DnaChem.dumps import find_dumps
+from g4utils.DnaChem.dumps import discover_dumps
+
+
+class _Subruns(Mapping[str, Dump]):
+    """Canonical keys for iteration, unique folder aliases for legacy lookup."""
+
+    def __init__(self, dumps: dict[str, Dump]):
+        self._dumps = dumps
+
+    def __getitem__(self, key: str) -> Dump:
+        if key in self._dumps:
+            return self._dumps[key]
+        matches = [dump for dump in self._dumps.values() if dump.name == key]
+        if len(matches) == 1:
+            return matches[0]
+        if matches:
+            raise KeyError(f"Ambiguous subrun folder {key!r}; use {[d.key for d in matches]}")
+        raise KeyError(f"No subrun {key!r}; available: {list(self._dumps)}")
+
+    def __iter__(self) -> Iterator[str]:
+        return iter(self._dumps)
+
+    def __len__(self) -> int:
+        return len(self._dumps)
 
 
 _EXTRA_COLUMNS = (
@@ -27,7 +51,8 @@ class Simulation:
 
     ``path`` may be a flat Dump folder, a ``results`` folder holding Dumps, or
     a simulation folder with a ``results/`` subfolder (used when it exists).
-    Construction only lists folders; no data file is read.
+    Construction reads manifests for discovery; data files remain lazy.
+    Subruns use root-relative manifest keys, with unique folder-name aliases.
     """
 
     def __init__(
@@ -37,18 +62,15 @@ class Simulation:
         results = root / "results"
         self.path = results if results.is_dir() else root
         self.name_pattern = name_pattern
-        self.subruns: dict[str, Dump] = {}
-        for folder in find_dumps(self.path):
-            dump = Dump(folder, name_pattern)
-            self.subruns[dump.name] = dump
+        dumps: dict[str, Dump] = {}
+        for location in discover_dumps(self.path):
+            dump = Dump.from_manifest(location.manifest_path, name_pattern)
+            dump.key = location.key
+            dumps[location.key] = dump
+        self.subruns: Mapping[str, Dump] = _Subruns(dumps)
 
     def subrun(self, name: str) -> Dump:
-        try:
-            return self.subruns[name]
-        except KeyError:
-            raise KeyError(
-                f"No subrun {name!r}; available: {list(self.subruns)}"
-            ) from None
+        return self.subruns[name]
 
     def __iter__(self) -> Iterator[Dump]:
         return iter(self.subruns.values())

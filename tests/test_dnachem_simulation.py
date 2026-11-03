@@ -27,14 +27,14 @@ def test_simulation_folder_uses_results(tmp_path, make_dump):
     _results(tmp_path, make_dump)
     sim = Simulation(tmp_path)
     assert sim.path == tmp_path / "results"
-    assert list(sim.subruns) == ["run_0pO2", "run_2pO2"]
+    assert list(sim.subruns) == ["run_0pO2/Manifest.json", "run_2pO2/Manifest.json"]
 
 
 def test_results_folder_and_flat_dump(tmp_path, make_dump):
     res = _results(tmp_path, make_dump)
     assert len(Simulation(res)) == 2
     flat = Simulation(res / "run_0pO2")
-    assert list(flat.subruns) == ["run_0pO2"]
+    assert list(flat.subruns) == ["Manifest.json"]
 
 
 def test_no_dump_raises(tmp_path):
