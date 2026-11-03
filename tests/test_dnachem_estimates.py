@@ -130,3 +130,10 @@ def test_missing_required_column_is_contextual(tmp_path, make_dump):
     file.write_text("\n".join(lines) + "\n", encoding="utf-8")
     with pytest.raises(ValueError, match=r"Species_nt_species\.csv.*sumG2"):
         Dump(path).particle_g_estimates()
+
+@pytest.mark.parametrize('n_event', [1.5, 2.5])
+def test_fractional_event_count_is_not_truncated(tmp_path, make_dump, n_event):
+    path = make_dump(tmp_path, 'run_a')
+    _one_row(path, n_event=n_event, sum_g=4, sum_g2=16)
+    with pytest.raises(ValueError, match=r'Species_nt_species\.csv.*nEvent'):
+        Dump(path).particle_g_estimates(assume_valid_event_g=True)

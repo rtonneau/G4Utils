@@ -229,14 +229,29 @@ class Dump:
             )
         frame = read_meso_species(file)
         frame["mean_count_per_event"] = (frame["count"] / total).astype("float64")
-        metadata = self._columns() | {
+        metadata = {
             "handOverTime_ns": self.manifest.handOverTime_ns,
             "chemistryEndTime_ns": self.manifest.chemistryEndTime_ns,
         }
-        return frame.assign(**metadata)
+        return self._with_columns(frame, metadata)
 
-    def _columns(self) -> dict:
-        return dump_columns(self.manifest, self.name) | self.labels | self._provenance()
+    def _columns(self, extra: dict | None = None) -> dict:
+        metadata = dump_columns(self.manifest, self.name) | self._provenance() | (extra or {})
+        labels = self.labels
+        self._check_labels(labels.keys() & metadata.keys())
+        return metadata | labels
+
+    def _check_labels(self, collisions: set) -> None:
+        if collisions:
+            raise ValueError(
+                f"{self.manifest_path}: name-pattern labels conflict with reader columns: "
+                f"{sorted(collisions)}; choose distinct label names"
+            )
+
+    def _with_columns(self, frame: pd.DataFrame, extra: dict | None = None) -> pd.DataFrame:
+        columns = self._columns(extra)
+        self._check_labels(self.labels.keys() & set(frame.columns))
+        return frame.assign(**columns)
 
     def species(self) -> pd.DataFrame:
         """Species counts and legacy aggregate-energy ``G`` (per 100 eV)."""
@@ -244,7 +259,7 @@ class Dump:
             df = read_ntuple(_require(self._data_file(SPECIES_FILE)))
             df["species"] = df["speciesName"].map(short_name)
             df["time_s"] = df.pop("time") * 1e-9
-            df = df.assign(**self._columns())
+            df = self._with_columns(df)
             df["G"] = df["number"] / (df["totalEnergyDeposit_eV"] / 100)
             self._species = df
         return self._species
@@ -269,7 +284,7 @@ class Dump:
         )
         frame["species"] = frame["speciesName"].map(short_name)
         frame["time_s"] = frame.pop("time") * 1e-9
-        frame = frame.assign(**self._columns())
+        frame = self._with_columns(frame)
         frame["G"] = frame["aggregate_energy_G"]
         return frame
 
@@ -280,7 +295,7 @@ class Dump:
             meta = self._read_metadata()
             df = df.merge(meta, on="reactionId", how="left")
             df["time_s"] = df.pop("time") * 1e-9
-            self._reactions = df.assign(**self._columns())
+            self._reactions = self._with_columns(df)
         return self._reactions
 
     def physical_interactions(self, *, per_event: bool = False) -> pd.DataFrame:
@@ -298,7 +313,7 @@ class Dump:
                     f"{self.manifest_path}: totalEvents must be finite and positive "
                     "for count_per_event"
                 )
-        frame = read_physical_interactions(file).assign(**self._columns())
+        frame = self._with_columns(read_physical_interactions(file))
         if per_event:
             frame["count_per_event"] = (frame["count"] / total).astype("float64")
         return frame
@@ -309,7 +324,7 @@ class Dump:
         frame = read_track_lengths(file)
         validate_track_summary(frame, self.manifest.raw.get("trackLengths"), file)
         warn_track_event_count(frame, self.manifest.totalEvents, file)
-        return frame.assign(**self._columns())
+        return self._with_columns(frame)
 
     def prechemical_records(self, *, allow_missing: bool = False) -> pd.DataFrame:
         """Pre-chemical records in nm/eV, retaining raw codes and null positions.
@@ -322,7 +337,7 @@ class Dump:
             self.manifest_path, self.prefix, self.manifest.files,
             allow_missing=allow_missing,
         )
-        return frame.assign(**self._columns())
+        return self._with_columns(frame)
 
     def reaction_table(self) -> pd.DataFrame:
         """One row per reaction, with Short-name equation and species counts."""

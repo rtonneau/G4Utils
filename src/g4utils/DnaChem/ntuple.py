@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from pathlib import Path
+import re
 
 import pandas as pd
 
@@ -35,8 +36,20 @@ def read_ntuple(path: Path) -> pd.DataFrame:
         names=names,
         encoding="utf-8",
         keep_default_na=False,
+        dtype={name: str for name, typ in zip(names, types) if typ == "int"},
     )
     for name, typ in zip(names, types):
+        if typ == "int":
+            values = []
+            for value in df[name]:
+                if not re.fullmatch(r"[+-]?[0-9]+", value):
+                    raise ValueError(f"{path}: {name} must contain integer tokens, got {value!r}")
+                number = int(value)
+                if not -(2**63) <= number < 2**63:
+                    raise ValueError(f"{path}: {name} is outside int64 range: {value!r}")
+                values.append(number)
+            df[name] = pd.Series(values, index=df.index, dtype="int64")
+            continue
         if typ in _DTYPES:
             df[name] = df[name].astype(_DTYPES[typ])
     return df

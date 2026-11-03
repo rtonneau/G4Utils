@@ -344,6 +344,12 @@ from the cached `species()` frame.
 
 ### Columns added by loaders
 
+Name-pattern labels must use names distinct from reader data, calculated
+estimates and manifest metadata. Conflicts raise a contextual `ValueError`
+instead of overwriting fields such as `run`, `count` or `totalEvents`.
+Declared integer ntuple columns are validated before conversion; fractional
+event counts are rejected rather than truncated.
+
 **`load_species()`** adds these columns to the ntuple data:
 - `species`: short chemical formula (e.g., "OH", "e_aq"; mapped via `SHORT_NAMES`)
 - `time_s`: time in seconds (replaces the ns `time` column)
