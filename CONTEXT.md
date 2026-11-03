@@ -122,8 +122,20 @@ folder name (e.g. `run_0p3pO2` → `o2_percent = 0.3`, with `p` read as a decima
 point). A convenience label only; the Manifest stays authoritative.
 
 **G-value**:
-Number of molecules of a species per 100 eV of energy deposited in the whole Dump:
-count / (total energy deposit / 100 eV).
+Number of molecules of a species per 100 eV of deposited energy. Two
+particle-stage estimators use different normalizations:
+
+- **Aggregate-energy G**: `100 * number / totalEnergyDeposit_eV`, where
+  `number` and energy are Dump totals. This is the legacy `Dump.species().G`.
+- **Mean event G**: `sumG / nEvent`, where `sumG` is the sum of event values
+  `G_i = 100 * count_i / deposited_energy_i_eV`. It can differ from the
+  aggregate-energy ratio when event deposits differ.
+
+`sumG2` is the sum of `G_i²`. A two-moment SEM for mean event G requires the
+same `nEvent` valid event values in both sums, including zeros, and positive
+deposited energy in every event. The CSV alone does not prove those conditions;
+the SEM is null by default. Event independence is also needed to interpret it
+as uncertainty. These moments do not give an SEM for aggregate-energy G.
 _Avoid_: "yield" alone (ambiguous between count and G-value).
 
 **Short name**:

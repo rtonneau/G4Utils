@@ -8,6 +8,7 @@ from typing import TYPE_CHECKING
 import pandas as pd
 
 from g4utils.DnaChem.dumps import MANIFEST_NAME, _relative_file, parse_dump_name
+from g4utils.DnaChem.estimates import particle_g_estimates, validate_total_energy
 from g4utils.DnaChem.manifest import Manifest, _parse_manifest_file, dump_columns
 from g4utils.DnaChem.ntuple import read_ntuple
 from g4utils.DnaChem.prechemical import read_prechemical_records
@@ -238,7 +239,7 @@ class Dump:
         return dump_columns(self.manifest, self.name) | self.labels | self._provenance()
 
     def species(self) -> pd.DataFrame:
-        """Species counts and G values (per 100 eV)."""
+        """Species counts and legacy aggregate-energy ``G`` (per 100 eV)."""
         if self._species is None:
             df = read_ntuple(_require(self._data_file(SPECIES_FILE)))
             df["species"] = df["speciesName"].map(short_name)
@@ -247,6 +248,30 @@ class Dump:
             df["G"] = df["number"] / (df["totalEnergyDeposit_eV"] / 100)
             self._species = df
         return self._species
+
+    def particle_g_estimates(self, *, assume_valid_event_g: bool = False) -> pd.DataFrame:
+        """Particle G estimators (molecules per 100 eV) with optional SEM.
+
+        The opt-in asserts equal valid-event coverage of both moments,
+        including zero values, and positive per-event energy deposits. These
+        facts and event independence cannot be established from the CSV.
+        """
+        energy = validate_total_energy(
+            self.manifest.totalEnergyDeposit_eV, self.manifest_path
+        )
+        file = _require(self._data_file(SPECIES_FILE))
+        try:
+            frame = read_ntuple(file)
+        except ValueError as exc:
+            raise ValueError(f"{file}: {exc}") from exc
+        frame = particle_g_estimates(
+            frame, energy, file, assume_valid_event_g=assume_valid_event_g
+        )
+        frame["species"] = frame["speciesName"].map(short_name)
+        frame["time_s"] = frame.pop("time") * 1e-9
+        frame = frame.assign(**self._columns())
+        frame["G"] = frame["aggregate_energy_G"]
+        return frame
 
     def reactions(self) -> pd.DataFrame:
         """Reaction counts with labels."""

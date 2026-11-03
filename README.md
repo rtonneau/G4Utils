@@ -218,6 +218,7 @@ dump.physical_interactions(per_event=True)  # also mean firings per event
 dump.track_lengths()              # one row per non-aborted event
 dump.prechemical_records()        # pre-chemical records with nullable final positions
 dump.meso_species()               # summed mesoscopic molecules and mean counts per event
+dump.particle_g_estimates()       # aggregate-energy and mean-event particle G
 dump.manifest                     # parsed Manifest
 
 meso = dump.meso                  # SpeciesMesoSpatialFile (SpeciesMesoSpatial.h5)
@@ -297,12 +298,45 @@ reader validates the exact `time_ns,species,count` header, finite nonnegative
 times, nonempty species names, nonnegative integer counts, and a finite positive
 `totalEvents` denominator even for empty output.
 
+### Particle-stage G estimates
+
+`Dump.particle_g_estimates(*, assume_valid_event_g=False)` returns the species
+rows with their raw `number`, `nEvent`, `sumG`, `sumG2`, species/time columns,
+and Dump provenance. It adds two estimators in molecules per 100 eV:
+
+- `aggregate_energy_G = 100 * number / manifest.totalEnergyDeposit_eV`, using
+  the Dump's total count and deposited energy. The legacy `species().G` has
+  this normalization and remains available.
+- `mean_event_G = sumG / nEvent`, where the scorer forms each event value as
+  `G_i = 100 * count_i / deposited_energy_i_eV`, then stores
+  `sumG = Σ G_i` and `sumG2 = Σ G_i²`. Unequal event deposits can make the
+  two estimators differ.
+
+`mean_event_G_sem` is pandas nullable `Float64` and is null by default. Pass
+`assume_valid_event_g=True` only when you can assert that the same `nEvent`
+valid event G values, **including zeros**, contributed to both moments and
+every contributing event had positive deposited energy. For `nEvent >= 2`,
+it then computes
+`sqrt(max(0, (sumG2 - sumG²/nEvent) / ((nEvent - 1) * nEvent)))`;
+for `nEvent = 1` it remains null. The CSV itself cannot verify the assertion.
+Interpreting this SEM as uncertainty also requires independent events, which
+the API does not establish. It is not an uncertainty for the aggregate-energy
+ratio; the stored totals cannot recover event count/energy correlations.
+
+The method rejects nonpositive or nonfinite total energy, nonpositive or
+noninteger `nEvent`, nonfinite moments, and moments violating
+`sumG2 >= sumG²/nEvent` beyond the writer's decimal rounding. The check allows
+a deficit of at most `2e-5 * max(sumG2, sumG²/nEvent)` plus 64 floating-point
+ulps of that scale; tolerated negative variance is clamped to zero for SEM.
+Errors identify the manifest or species CSV row. The returned frame is separate
+from the cached `species()` frame.
+
 ### Columns added by loaders
 
 **`load_species()`** adds these columns to the ntuple data:
 - `species`: short chemical formula (e.g., "OH", "e_aq"; mapped via `SHORT_NAMES`)
 - `time_s`: time in seconds (replaces the ns `time` column)
-- `G`: G value = number / (totalEnergyDeposit_eV / 100)
+- `G`: aggregate-energy G value = number / (totalEnergyDeposit_eV / 100)
 - `dump`: Dump folder name
 - `dump_key`: canonical manifest key within the selected discovery root
 - `manifest_path`: resolved path of the selected manifest (distinct provenance even for shared folders)
