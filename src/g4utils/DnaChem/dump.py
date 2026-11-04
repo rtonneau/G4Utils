@@ -1,14 +1,21 @@
 from __future__ import annotations
 
 import re
+import math
 from pathlib import Path
 from typing import TYPE_CHECKING
 
 import pandas as pd
 
-from g4utils.DnaChem.dumps import MANIFEST_NAME, parse_dump_name
+from g4utils.DnaChem.dumps import MANIFEST_NAME, _relative_file, parse_dump_name
+from g4utils.DnaChem.estimates import particle_g_estimates, validate_total_energy
 from g4utils.DnaChem.manifest import Manifest, _parse_manifest_file, dump_columns
 from g4utils.DnaChem.ntuple import read_ntuple
+from g4utils.DnaChem.prechemical import read_prechemical_records
+from g4utils.DnaChem.readers import (
+    read_meso_species, read_physical_interactions, read_track_lengths, validate_track_summary,
+    warn_track_event_count,
+)
 from g4utils.DnaChem.species_names import short_name
 
 if TYPE_CHECKING:
@@ -18,6 +25,9 @@ SPECIES_FILE = "Species_nt_species.csv"
 REACTIONS_FILE = "Reactions_nt_reactions.csv"
 REACTIONS_METADATA_FILE = "ReactionsMetadata.csv"
 MESO_FILE = "SpeciesMesoSpatial.h5"
+MESO_SPECIES_FILE = "SpeciesMeso.csv"
+PHYSICAL_INTERACTIONS_FILE = "PhysicsInteractions.csv"
+TRACK_LENGTHS_FILE = "TrackLengths.csv"
 
 
 def _require(file: Path) -> Path:
@@ -74,7 +84,7 @@ def build_reaction_table(meta: pd.DataFrame) -> pd.DataFrame:
 
 
 class Dump:
-    """One dnachem-min Dump folder, read lazily.
+    """One dnachem-min output flush, selected by its manifest and read lazily.
 
     Construction only checks that the folder holds a ``Manifest.json``;
     everything else loads on first access and is cached.
@@ -83,10 +93,24 @@ class Dump:
     def __init__(
         self, path: str | Path, name_pattern: str | re.Pattern | None = None
     ) -> None:
-        self.path = Path(path)
-        if not (self.path / MANIFEST_NAME).is_file():
+        self._initialize(Path(path) / MANIFEST_NAME, name_pattern)
+
+    @classmethod
+    def from_manifest(
+        cls, manifest_path: str | Path, name_pattern: str | re.Pattern | None = None
+    ) -> Dump:
+        """Select one manifest explicitly, including a prefixed manifest."""
+        dump = cls.__new__(cls)
+        dump._initialize(Path(manifest_path), name_pattern)
+        return dump
+
+    def _initialize(self, manifest_path: Path, name_pattern) -> None:
+        self.path = manifest_path.parent
+        self.manifest_path = manifest_path.resolve()
+        self.key = self.manifest_path.name
+        if not self.manifest_path.is_file():
             raise FileNotFoundError(
-                f"No Dump ({MANIFEST_NAME}) found at {self.path}"
+                f"No Dump manifest found at {self.manifest_path}"
             )
         self.name_pattern = name_pattern
         self._manifest: Manifest | None = None
@@ -107,7 +131,7 @@ class Dump:
     @property
     def manifest(self) -> Manifest:
         if self._manifest is None:
-            self._manifest = _parse_manifest_file(self.path / MANIFEST_NAME)
+            self._manifest = _parse_manifest_file(self.manifest_path)
         return self._manifest
 
     @property
@@ -121,7 +145,45 @@ class Dump:
         return self.manifest.prefix or ""
 
     def _data_file(self, filename: str) -> Path:
-        return self.path / f"{self.prefix}{filename}"
+        """Resolve a listed file first, then the conventional prefixed filename.
+
+        Listed paths are relative to the selected manifest, never outputDir.
+        Their existence does not affect selection: a missing listed file must
+        not fall back to a different dump's file.
+        """
+        portable = filename.replace("\\", "/")
+        # Validate the request even when a basename might match the inventory.
+        _relative_file(self.manifest_path.parent, portable, str(self.manifest_path))
+        requested = Path(portable)
+        name = requested.name
+        # The argument is a conventional filename, not a prefix heuristic:
+        # even prefix="S" must turn Species... into SSpecies.... Already
+        # prefixed inventory entries are selected verbatim below.
+        prefixed = f"{self.prefix}{name}"
+        matches = []
+        for listed in self.files:
+            listed = listed.replace("\\", "/")
+            if Path(listed).name in (name, prefixed):
+                matches.append(listed)
+        if len(matches) > 1:
+            raise ValueError(
+                f"{self.manifest_path}: ambiguous files for {filename!r}: {matches}"
+            )
+        selected = matches[0] if matches else requested.with_name(prefixed).as_posix()
+        return self._listed_file(selected)
+
+    def _listed_file(self, filename: str) -> Path:
+        """Resolve a literal inventory path without adding any prefix."""
+        return _relative_file(self.manifest_path.parent, filename, str(self.manifest_path))
+
+    def _provenance(self) -> dict:
+        """Columns shared by dump readers, retaining the legacy folder label."""
+        return {
+            "dump": self.name,
+            "dump_key": self.key,
+            "manifest_path": str(self.manifest_path),
+            "prefix": self.prefix,
+        }
 
     @property
     def has_meso(self) -> bool:
@@ -131,19 +193,100 @@ class Dump:
             and self._data_file(MESO_FILE).is_file()
         )
 
-    def _columns(self) -> dict:
-        return dump_columns(self.manifest, self.name) | self.labels
+    def _meso_species_enabled(self) -> bool:
+        # Modern manifests supply a validated boolean. Historical manifests
+        # qualify only by the writer's explicit combined model name.
+        enabled = self.manifest.mesoEnabled
+        return enabled if enabled is not None else (
+            self.manifest.chemistryModel == "IRT_syn+mesoscopic"
+        )
+
+    @property
+    def has_meso_species(self) -> bool:
+        """True when the mesoscopic stage is enabled and its aggregate CSV exists."""
+        return self._meso_species_enabled() and self._data_file(MESO_SPECIES_FILE).is_file()
+
+    def meso_species(self) -> pd.DataFrame:
+        """Summed molecule counts and mean counts per event; these are not G values.
+
+        Preserve raw species names, ns record times and manifest stage times.
+        Availability is independent of the spatial HDF5 output.
+        """
+        if not self._meso_species_enabled():
+            raise FileNotFoundError(
+                f"Mesoscopic species output is disabled or not enabled by "
+                f"{self.manifest_path} (mesoEnabled or legacy chemistryModel)"
+            )
+        file = self._data_file(MESO_SPECIES_FILE)
+        if not file.is_file():
+            raise FileNotFoundError(f"Missing expected mesoscopic species CSV {file}")
+        total = self.manifest.totalEvents
+        if (isinstance(total, bool) or not isinstance(total, (int, float))
+                or not math.isfinite(total) or total <= 0):
+            raise ValueError(
+                f"{self.manifest_path}: totalEvents must be finite and positive "
+                "for mean_count_per_event"
+            )
+        frame = read_meso_species(file)
+        frame["mean_count_per_event"] = (frame["count"] / total).astype("float64")
+        metadata = {
+            "handOverTime_ns": self.manifest.handOverTime_ns,
+            "chemistryEndTime_ns": self.manifest.chemistryEndTime_ns,
+        }
+        return self._with_columns(frame, metadata)
+
+    def _columns(self, extra: dict | None = None) -> dict:
+        metadata = dump_columns(self.manifest, self.name) | self._provenance() | (extra or {})
+        labels = self.labels
+        self._check_labels(labels.keys() & metadata.keys())
+        return metadata | labels
+
+    def _check_labels(self, collisions: set) -> None:
+        if collisions:
+            raise ValueError(
+                f"{self.manifest_path}: name-pattern labels conflict with reader columns: "
+                f"{sorted(collisions)}; choose distinct label names"
+            )
+
+    def _with_columns(self, frame: pd.DataFrame, extra: dict | None = None) -> pd.DataFrame:
+        columns = self._columns(extra)
+        self._check_labels(self.labels.keys() & set(frame.columns))
+        return frame.assign(**columns)
 
     def species(self) -> pd.DataFrame:
-        """Species counts and G values (per 100 eV)."""
+        """Species counts and legacy aggregate-energy ``G`` (per 100 eV)."""
         if self._species is None:
             df = read_ntuple(_require(self._data_file(SPECIES_FILE)))
             df["species"] = df["speciesName"].map(short_name)
             df["time_s"] = df.pop("time") * 1e-9
-            df = df.assign(**self._columns())
+            df = self._with_columns(df)
             df["G"] = df["number"] / (df["totalEnergyDeposit_eV"] / 100)
             self._species = df
         return self._species
+
+    def particle_g_estimates(self, *, assume_valid_event_g: bool = False) -> pd.DataFrame:
+        """Particle G estimators (molecules per 100 eV) with optional SEM.
+
+        The opt-in asserts equal valid-event coverage of both moments,
+        including zero values, and positive per-event energy deposits. These
+        facts and event independence cannot be established from the CSV.
+        """
+        energy = validate_total_energy(
+            self.manifest.totalEnergyDeposit_eV, self.manifest_path
+        )
+        file = _require(self._data_file(SPECIES_FILE))
+        try:
+            frame = read_ntuple(file)
+        except ValueError as exc:
+            raise ValueError(f"{file}: {exc}") from exc
+        frame = particle_g_estimates(
+            frame, energy, file, assume_valid_event_g=assume_valid_event_g
+        )
+        frame["species"] = frame["speciesName"].map(short_name)
+        frame["time_s"] = frame.pop("time") * 1e-9
+        frame = self._with_columns(frame)
+        frame["G"] = frame["aggregate_energy_G"]
+        return frame
 
     def reactions(self) -> pd.DataFrame:
         """Reaction counts with labels."""
@@ -152,8 +295,49 @@ class Dump:
             meta = self._read_metadata()
             df = df.merge(meta, on="reactionId", how="left")
             df["time_s"] = df.pop("time") * 1e-9
-            self._reactions = df.assign(**self._columns())
+            self._reactions = self._with_columns(df)
         return self._reactions
+
+    def physical_interactions(self, *, per_event: bool = False) -> pd.DataFrame:
+        """Raw process firing totals; optionally add mean firings per event.
+
+        ``count`` is dimensionless. ``count_per_event`` divides by the
+        manifest's finite positive ``totalEvents`` only when requested.
+        """
+        file = _require(self._data_file(PHYSICAL_INTERACTIONS_FILE))
+        if per_event:
+            total = self.manifest.totalEvents
+            if (isinstance(total, bool) or not isinstance(total, (int, float))
+                    or not math.isfinite(total) or total <= 0):
+                raise ValueError(
+                    f"{self.manifest_path}: totalEvents must be finite and positive "
+                    "for count_per_event"
+                )
+        frame = self._with_columns(read_physical_interactions(file))
+        if per_event:
+            frame["count_per_event"] = (frame["count"] / total).astype("float64")
+        return frame
+
+    def track_lengths(self) -> pd.DataFrame:
+        """One non-aborted event per row; lengths in nm, energies in keV."""
+        file = _require(self._data_file(TRACK_LENGTHS_FILE))
+        frame = read_track_lengths(file)
+        validate_track_summary(frame, self.manifest.raw.get("trackLengths"), file)
+        warn_track_event_count(frame, self.manifest.totalEvents, file)
+        return self._with_columns(frame)
+
+    def prechemical_records(self, *, allow_missing: bool = False) -> pd.DataFrame:
+        """Pre-chemical records in nm/eV, retaining raw codes and null positions.
+
+        Use the manifest inventory when present; otherwise scan this directory
+        for this literal prefix. Listed missing files always raise, even when
+        absent optional output is allowed with ``allow_missing=True``.
+        """
+        frame = read_prechemical_records(
+            self.manifest_path, self.prefix, self.manifest.files,
+            allow_missing=allow_missing,
+        )
+        return self._with_columns(frame)
 
     def reaction_table(self) -> pd.DataFrame:
         """One row per reaction, with Short-name equation and species counts."""
@@ -183,4 +367,6 @@ class Dump:
         return read_reactions_metadata(_require(self._data_file(REACTIONS_METADATA_FILE)))
 
     def __repr__(self) -> str:
+        if self.manifest_path.name != MANIFEST_NAME:
+            return f"Dump.from_manifest({str(self.manifest_path)!r})"
         return f"Dump({str(self.path)!r})"

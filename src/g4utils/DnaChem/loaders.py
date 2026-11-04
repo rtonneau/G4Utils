@@ -6,6 +6,7 @@ from pathlib import Path
 import pandas as pd
 
 from g4utils.DnaChem.dump import (
+    Dump,
     REACTIONS_METADATA_FILE,
     build_reaction_table,
     read_reactions_metadata,
@@ -37,8 +38,15 @@ def load_reaction_table(path: str | Path) -> pd.DataFrame:
     """
     root = Path(path)
     if root.is_file():
+        if root.suffix.lower() == ".json":
+            return Dump.from_manifest(root).reaction_table()
         return build_reaction_table(read_reactions_metadata(root))
-    if (root / REACTIONS_METADATA_FILE).is_file():
+    has_manifests = (
+        any(root.glob("*Manifest.json"))
+        or any(root.glob("*/*Manifest.json"))
+        or (root / "results").is_dir()
+    )
+    if (root / REACTIONS_METADATA_FILE).is_file() and not has_manifests:
         return build_reaction_table(
             read_reactions_metadata(root / REACTIONS_METADATA_FILE)
         )

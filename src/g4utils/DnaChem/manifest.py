@@ -2,7 +2,6 @@ from __future__ import annotations
 
 import dataclasses
 import html
-import json
 import math
 import re
 import warnings
@@ -11,7 +10,7 @@ from pathlib import Path
 
 import pandas as pd
 
-from g4utils.DnaChem.dumps import MANIFEST_NAME, find_dumps, parse_dump_name
+from g4utils.DnaChem.dumps import _literal_prefix, _read_manifest_json, discover_dumps
 
 SUPPORTED_SCHEMA_VERSION = 1
 
@@ -84,6 +83,7 @@ class Manifest:
     voxelSize_nm: float | None = None
     mesoPixels: int | None = None
     mesoTimesPerDecade: int | None = None
+    mesoEnabled: bool | None = None
     mesoSpatialOutput: bool | None = None
     runMode: str | None = None
     threads: int | None = None
@@ -99,6 +99,19 @@ class Manifest:
 
     @classmethod
     def from_dict(cls, data: dict) -> Manifest:
+        if not isinstance(data, dict):
+            raise ValueError("manifest must be a JSON object")
+        _literal_prefix(data.get("prefix"), "manifest")
+        if "mesoEnabled" in data and not isinstance(data["mesoEnabled"], bool):
+            raise ValueError("mesoEnabled must be a boolean when present")
+        for key in ("runs", "scavengers", "files"):
+            value = data.get(key)
+            item_type = str if key == "files" else dict
+            if value is not None and (
+                not isinstance(value, (list, tuple))
+                or any(not isinstance(item, item_type) for item in value)
+            ):
+                raise ValueError(f"{key} must be an array of {item_type.__name__} values")
         known, unknown = _split(data, cls)
         known["scavengers"] = tuple(
             Scavenger.from_dict(s) for s in data.get("scavengers") or []
@@ -191,6 +204,7 @@ def _summary(m: Manifest) -> dict:
             ("voxelSize_nm", m.voxelSize_nm),
             ("mesoPixels", m.mesoPixels),
             ("mesoTimesPerDecade", m.mesoTimesPerDecade),
+            ("mesoEnabled", m.mesoEnabled),
             ("mesoSpatialOutput", m.mesoSpatialOutput),
         ]
     )
@@ -287,14 +301,9 @@ def _render_html(m: Manifest) -> str:
 
 
 def _parse_manifest_file(file: Path) -> Manifest:
-    try:
-        data = json.loads(file.read_text(encoding="utf-8"))
-    except json.JSONDecodeError as exc:
-        raise ValueError(f"{file}: invalid JSON ({exc})") from exc
-    if not isinstance(data, dict):
-        raise ValueError(f"{file}: manifest must be a JSON object")
-    if "schemaVersion" not in data:
-        raise ValueError(f"{file}: missing schemaVersion")
+    data = _read_manifest_json(file)
+    if data.get("kind") == "resultsIndex":
+        raise ValueError(f"{file}: resultsIndex is not a dump manifest; use Simulation")
     version = data["schemaVersion"]
     if isinstance(version, (int, float)) and version > SUPPORTED_SCHEMA_VERSION:
         warnings.warn(
@@ -303,37 +312,30 @@ def _parse_manifest_file(file: Path) -> Manifest:
             UserWarning,
             stacklevel=3,
         )
-    return Manifest.from_dict(data)
+    try:
+        return Manifest.from_dict(data)
+    except (TypeError, ValueError) as exc:
+        raise ValueError(f"{file}: {exc}") from exc
 
 
 def read_manifest(path: str | Path) -> Manifest:
     """Read one Manifest from a Dump folder or a ``*Manifest.json`` file.
 
-    A folder holding exactly one Dump (or only one ``*Manifest.json``) is
-    accepted too.
+    Folders use manifest-aware discovery and must select exactly one Dump.
+    Passing a file explicitly selects that manifest even if it also has an index.
     """
     p = Path(path).resolve()
     if p.is_file():
         return _parse_manifest_file(p)
     if not p.is_dir():
         raise FileNotFoundError(f"No manifest found at {p}")
-    try:
-        dumps = find_dumps(p)
-    except FileNotFoundError:
-        files = sorted(p.glob("*Manifest.json"))
-        if not files:
-            raise FileNotFoundError(f"No manifest (*Manifest.json) found in {p}")
-        if len(files) > 1:
-            raise ValueError(
-                f"{p} holds several manifests ({', '.join(f.name for f in files)}); "
-                "pass one file explicitly"
-            )
-        return _parse_manifest_file(files[0])
+    root = p / "results" if (p / "results").is_dir() else p
+    dumps = discover_dumps(root)
     if len(dumps) > 1:
         raise ValueError(
             f"{p} holds {len(dumps)} Dumps; use load_manifests to read them all"
         )
-    return _parse_manifest_file(dumps[0] / MANIFEST_NAME)
+    return _parse_manifest_file(dumps[0].manifest_path)
 
 
 def _common(runs: tuple[ManifestRun, ...], key: str, dump_name: str):
@@ -373,11 +375,12 @@ def load_manifests(
     path: str | Path, name_pattern: str | re.Pattern | None = None
 ) -> pd.DataFrame:
     """One row per run across all Dumps found at ``path``."""
+    from g4utils.DnaChem.simulation import Simulation
+
     rows: list[dict] = []
-    for dump in find_dumps(path):
-        manifest = json.loads((dump / MANIFEST_NAME).read_text(encoding="utf-8"))
-        base = dump_columns(manifest, dump.name)
-        base.update(parse_dump_name(dump.name, name_pattern))
+    for dump in Simulation(path, name_pattern):
+        base = dump._columns()
+        manifest = _read_manifest_json(dump.manifest_path)
         runs = manifest.get("runs") or []
         if not runs:
             rows.append(base)
