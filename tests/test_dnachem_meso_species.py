@@ -147,3 +147,36 @@ def test_meso_species_invalid_enablement(tmp_path, make_dump, flag):
     _csv(path)
     with pytest.raises(ValueError, match="mesoEnabled.*boolean"):
         Dump(path).meso_species()
+
+
+@pytest.mark.parametrize("fmt", ["csv", "h5", "root", "txt"])
+def test_standardized_meso_species(tmp_path, make_standardized_dump, fmt):
+    dump = Dump(make_standardized_dump(tmp_path, "new", formats=(fmt,)))
+    assert dump.has_meso_species
+    frame = dump.meso_species()
+    assert frame["species"].tolist() == ["H2O2^0", "°OH^0"]  # raw names
+    assert frame["count"].tolist() == [4, 0]
+    assert frame["mean_count_per_event"].tolist() == [2.0, 0.0]
+    assert frame["nEvents"].tolist() == [2, 2]
+    assert frame["handOverTime_ns"].tolist() == [5, 5]
+    assert "G" not in frame
+
+
+def test_standardized_meso_species_disabled_product(tmp_path, make_standardized_dump):
+    path = make_standardized_dump(
+        tmp_path, "new", manifest_extra={"outputFormats": {"species": ["csv"], "speciesMeso": []}}
+    )
+    dump = Dump(path)
+    assert not dump.has_meso_species
+    with pytest.raises(FileNotFoundError, match="speciesMeso.*outputFormats"):
+        dump.meso_species()
+
+
+def test_legacy_meso_species_has_standardized_columns(tmp_path, make_dump):
+    path = make_dump(tmp_path, "run_a", manifest_extra={"mesoEnabled": True, "totalEvents": 2})
+    _csv(path)
+    frame = Dump(path).meso_species()
+    assert frame["nEvents"].tolist() == [2, 2]
+    assert frame["countSum"].tolist() == [97.0, 0.0]
+    assert frame["countMean"].tolist() == [48.5, 0.0]
+    assert frame["gMean"].isna().all()

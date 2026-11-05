@@ -360,3 +360,71 @@ def write_standardized_table(directory, stem, table, columns, formats, *, contai
         opener = uproot.update if path.exists() else uproot.recreate
         with opener(path) as f:
             f[table] = data
+
+
+_STD_STATS = {"nEvents": 2, "countSum": 10, "countSumSq": 52, "countMean": 5.0, "countStdErr": 1.0}
+
+
+def _std_species_table(rows):
+    """Columns for a Species/SpeciesMeso table; rows are (time, name, countSum, gMean)."""
+    return {
+        "time_ns": [float(r[0]) for r in rows],
+        "species": [r[1] for r in rows],
+        "nEvents": [2] * len(rows),
+        "countSum": [float(r[2]) for r in rows],
+        "countSumSq": [float(r[2]) ** 2 for r in rows],
+        "countMean": [float(r[2]) / 2 for r in rows],
+        "countStdErr": [0.5] * len(rows),
+        "gSum": [2.0 * r[3] for r in rows],
+        "gSumSq": [2.0 * r[3] ** 2 for r in rows],
+        "gMean": [float(r[3]) for r in rows],
+        "gStdErr": [0.25] * len(rows),
+    }
+
+
+STD_SPECIES_ROWS = [(0.001, "°OH^0", 10, 0.5), (0.001, "e_aq^-1", 8, 0.4), (5.0, "°OH^0", 6, 0.3)]
+STD_MESO_ROWS = [(5.0, "H2O2^0", 4, 0.2), (10.0, "°OH^0", 0, 0.0)]
+
+
+@pytest.fixture
+def make_standardized_dump():
+    """Factory for a dnachem-min Dump in the standardized output layout."""
+
+    def _make(parent, name, *, formats=("csv",), energy_deposit_eV=400.0, manifest_extra=None):
+        d = Path(parent) / name
+        d.mkdir(parents=True, exist_ok=True)
+        listing = list(formats)
+        products = {
+            "species": listing,
+            "speciesMeso": listing,
+        }
+        manifest = {
+            "schemaVersion": 1,
+            "hdf5": "h5" in formats,
+            "outputFormats": products,
+            "chemistry": "PureWater",
+            "pH": 7,
+            "scavengers": [],
+            "mesoEnabled": True,
+            "mesoSpatialOutput": False,
+            "handOverTime_ns": 5,
+            "chemistryEndTime_ns": 1000,
+            "totalEvents": 2,
+            "totalEnergyDeposit_eV": energy_deposit_eV,
+            "runs": [{"run": 0, "events": 2, "particle": "e-", "beamEnergy_keV": 10}],
+        }
+        manifest.update(manifest_extra or {})
+        write_standardized_table(
+            d, "Species", "species", _std_species_table(STD_SPECIES_ROWS), formats
+        )
+        write_standardized_table(
+            d, "SpeciesMeso", "speciesMeso", _std_species_table(STD_MESO_ROWS), formats
+        )
+        files = []
+        for stem in ("Species", "SpeciesMeso"):
+            files += [f"{stem}.{fmt}" for fmt in formats]
+        manifest.setdefault("files", files)
+        (d / "Manifest.json").write_text(json.dumps(manifest, indent=2), encoding="utf-8")
+        return d
+
+    return _make

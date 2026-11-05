@@ -8,7 +8,9 @@ from typing import TYPE_CHECKING
 import pandas as pd
 
 from g4utils.DnaChem.dumps import MANIFEST_NAME, _relative_file, parse_dump_name
-from g4utils.DnaChem.estimates import particle_g_estimates, validate_total_energy
+from g4utils.DnaChem.estimates import (
+    particle_g_estimates, standardized_g_estimates, validate_total_energy,
+)
 from g4utils.DnaChem.manifest import Manifest, _parse_manifest_file, dump_columns
 from g4utils.DnaChem.ntuple import read_ntuple
 from g4utils.DnaChem.prechemical import read_prechemical_records
@@ -17,6 +19,7 @@ from g4utils.DnaChem.readers import (
     warn_track_event_count,
 )
 from g4utils.DnaChem.species_names import short_name
+from g4utils.DnaChem.tables import pick_format, read_table_file
 
 if TYPE_CHECKING:
     from g4utils.HDF5 import SpeciesMesoSpatialFile
@@ -28,6 +31,10 @@ MESO_FILE = "SpeciesMesoSpatial.h5"
 MESO_SPECIES_FILE = "SpeciesMeso.csv"
 PHYSICAL_INTERACTIONS_FILE = "PhysicsInteractions.csv"
 TRACK_LENGTHS_FILE = "TrackLengths.csv"
+
+
+# Statistics the legacy files never stored; legacy frames carry them as NaN.
+_STAT_COLUMNS = ("countSumSq", "countStdErr", "gSum", "gSumSq", "gMean", "gStdErr")
 
 
 def _require(file: Path) -> Path:
@@ -156,13 +163,39 @@ class Dump:
 
     def _product_formats(self, product: str) -> tuple[str, ...]:
         """Formats written for ``product``; raise when it was disabled."""
-        formats = (self.manifest.outputFormats or {}).get(product)
-        if formats is not None and not formats:
+        if self._layout == "legacy":
+            return ()
+        formats = self.manifest.outputFormats.get(product)
+        if not formats:
             raise FileNotFoundError(
                 f"Product {product!r} was not written: outputFormats lists no "
                 f"format for it in {self.manifest_path}"
             )
-        return formats or ()
+        return formats
+
+    def _table_location(self, stem: str, product: str):
+        """Format and path of the preferred file of a standardized product."""
+        formats = self._product_formats(product)
+        listed = [f.replace("\\", "/") for f in self.files]
+        directory = self.manifest_path.parent
+        prefixed = f"{self.prefix}{stem}"
+        for entry in listed:
+            if Path(entry).name.startswith(prefixed + "."):
+                directory = self._listed_file(Path(entry).parent.as_posix())
+                break
+        inventory = [Path(f).name for f in listed] if listed else None
+        return pick_format(directory, prefixed, formats, inventory)
+
+    def _read_standardized(self, stem: str, product: str, table: str):
+        fmt, path = self._table_location(stem, product)
+        return read_table_file(path, fmt, table)
+
+    def _standardized_available(self, stem: str, product: str) -> bool:
+        try:
+            self._table_location(stem, product)
+        except FileNotFoundError:
+            return False
+        return True
 
     def _data_file(self, filename: str) -> Path:
         """Resolve a listed file first, then the conventional prefixed filename.
@@ -224,7 +257,11 @@ class Dump:
     @property
     def has_meso_species(self) -> bool:
         """True when the mesoscopic stage is enabled and its aggregate CSV exists."""
-        return self._meso_species_enabled() and self._data_file(MESO_SPECIES_FILE).is_file()
+        if not self._meso_species_enabled():
+            return False
+        if self._layout == "standardized":
+            return self._standardized_available("SpeciesMeso", "speciesMeso")
+        return self._data_file(MESO_SPECIES_FILE).is_file()
 
     def meso_species(self) -> pd.DataFrame:
         """Summed molecule counts and mean counts per event; these are not G values.
@@ -237,6 +274,15 @@ class Dump:
                 f"Mesoscopic species output is disabled or not enabled by "
                 f"{self.manifest_path} (mesoEnabled or legacy chemistryModel)"
             )
+        metadata = {
+            "handOverTime_ns": self.manifest.handOverTime_ns,
+            "chemistryEndTime_ns": self.manifest.chemistryEndTime_ns,
+        }
+        if self._layout == "standardized":
+            frame = self._read_standardized("SpeciesMeso", "speciesMeso", "speciesMeso")
+            frame["count"] = frame["countSum"].astype("int64")
+            frame["mean_count_per_event"] = frame["countMean"]
+            return self._with_columns(frame, metadata)
         file = self._data_file(MESO_SPECIES_FILE)
         if not file.is_file():
             raise FileNotFoundError(f"Missing expected mesoscopic species CSV {file}")
@@ -249,10 +295,11 @@ class Dump:
             )
         frame = read_meso_species(file)
         frame["mean_count_per_event"] = (frame["count"] / total).astype("float64")
-        metadata = {
-            "handOverTime_ns": self.manifest.handOverTime_ns,
-            "chemistryEndTime_ns": self.manifest.chemistryEndTime_ns,
-        }
+        frame["nEvents"] = int(total)
+        frame["countSum"] = frame["count"].astype("float64")
+        frame["countMean"] = frame["mean_count_per_event"]
+        for column in _STAT_COLUMNS:
+            frame[column] = math.nan
         return self._with_columns(frame, metadata)
 
     def _columns(self, extra: dict | None = None) -> dict:
@@ -276,13 +323,41 @@ class Dump:
     def species(self) -> pd.DataFrame:
         """Species counts and legacy aggregate-energy ``G`` (per 100 eV)."""
         if self._species is None:
-            df = read_ntuple(_require(self._data_file(SPECIES_FILE)))
-            df["species"] = df["speciesName"].map(short_name)
-            df["time_s"] = df.pop("time") * 1e-9
-            df = self._with_columns(df)
-            df["G"] = df["number"] / (df["totalEnergyDeposit_eV"] / 100)
-            self._species = df
+            if self._layout == "standardized":
+                self._species = self._standardized_species()
+            else:
+                df = read_ntuple(_require(self._data_file(SPECIES_FILE)))
+                df["species"] = df["speciesName"].map(short_name)
+                df["time_ns"] = df["time"]
+                df["time_s"] = df.pop("time") * 1e-9
+                df = self._with_columns(df)
+                df["G"] = df["number"] / (df["totalEnergyDeposit_eV"] / 100)
+                self._species = self._map_legacy_species(df)
         return self._species
+
+    def _standardized_species(self, frame: pd.DataFrame | None = None) -> pd.DataFrame:
+        if frame is None:
+            frame = self._read_standardized("Species", "species", "species")
+        frame["speciesName"] = frame["species"].astype(object)
+        frame["species"] = frame["speciesName"].map(short_name)
+        frame["time_s"] = frame["time_ns"] * 1e-9
+        frame = self._with_columns(frame)
+        frame["G"] = frame["gMean"]
+        return frame
+
+    @staticmethod
+    def _map_legacy_species(df: pd.DataFrame) -> pd.DataFrame:
+        """Add the standardized columns to a legacy frame; legacy ones stay."""
+        df["nEvents"] = df["nEvent"]
+        df["countSum"] = df["number"].astype("float64")
+        df["countMean"] = df["countSum"] / df["nEvents"]
+        df["gSum"] = df["sumG"]
+        df["gSumSq"] = df["sumG2"]
+        df["gMean"] = df["sumG"] / df["nEvents"]
+        df["countSumSq"] = math.nan
+        df["countStdErr"] = math.nan
+        df["gStdErr"] = math.nan
+        return df
 
     def particle_g_estimates(self, *, assume_valid_event_g: bool = False) -> pd.DataFrame:
         """Particle G estimators (molecules per 100 eV) with optional SEM.
@@ -294,6 +369,12 @@ class Dump:
         energy = validate_total_energy(
             self.manifest.totalEnergyDeposit_eV, self.manifest_path
         )
+        if self._layout == "standardized":
+            fmt, file = self._table_location("Species", "species")
+            frame = standardized_g_estimates(
+                read_table_file(file, fmt, "species"), energy, file
+            )
+            return self._standardized_species(frame)
         file = _require(self._data_file(SPECIES_FILE))
         try:
             frame = read_ntuple(file)
@@ -303,10 +384,11 @@ class Dump:
             frame, energy, file, assume_valid_event_g=assume_valid_event_g
         )
         frame["species"] = frame["speciesName"].map(short_name)
+        frame["time_ns"] = frame["time"]
         frame["time_s"] = frame.pop("time") * 1e-9
         frame = self._with_columns(frame)
         frame["G"] = frame["aggregate_energy_G"]
-        return frame
+        return self._map_legacy_species(frame)
 
     def reactions(self) -> pd.DataFrame:
         """Reaction counts with labels."""

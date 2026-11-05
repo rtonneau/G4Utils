@@ -91,3 +91,23 @@ def particle_g_estimates(
     result["mean_event_G"] = pd.Series(means, index=frame.index, dtype="float64")
     result["mean_event_G_sem"] = pd.Series(sems, index=frame.index, dtype="Float64")
     return result
+
+
+def standardized_g_estimates(
+    frame: pd.DataFrame, total_energy_eV: float, source: Path
+) -> pd.DataFrame:
+    """Particle G estimators from a standardized Species table.
+
+    The writer stores per-event ``gMean`` and ``gStdErr`` (molecules per
+    100 eV) over ``nEvents`` events, so nothing is rebuilt from moments.
+    ``aggregate_energy_G`` is the pooled ratio ``countSum / (E / 100)``.
+    """
+    required = {"nEvents", "countSum", "gMean", "gStdErr"}
+    missing = sorted(required.difference(frame.columns))
+    if missing:
+        raise ValueError(f"{source}: missing required species columns: {missing}")
+    result = frame.copy()
+    result["aggregate_energy_G"] = (result["countSum"] * 100.0 / total_energy_eV).astype("float64")
+    result["mean_event_G"] = result["gMean"].astype("float64")
+    result["mean_event_G_sem"] = result["gStdErr"].astype("Float64")
+    return result
