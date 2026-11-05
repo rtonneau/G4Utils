@@ -310,3 +310,53 @@ def write_species_meso_spatial(
 @pytest.fixture
 def species_meso_spatial_file(tmp_path) -> Path:
     return write_species_meso_spatial(tmp_path / "SpeciesMesoSpatial.h5")
+
+
+def write_standardized_table(directory, stem, table, columns, formats, *, container=None):
+    """Write one table (dict of column to list) in the requested formats.
+
+    Mirrors dnachem-min: csv/txt use ``<stem>.<ext>``; h5 holds a group named
+    ``table`` (datasets alphabetical, floats as f8, text as objects) and root a
+    TTree of that name with every number stored as double.
+    """
+    directory = Path(directory)
+    directory.mkdir(parents=True, exist_ok=True)
+    names = list(columns)
+    rows = list(zip(*columns.values()))
+    base = container or stem
+    if "csv" in formats:
+        lines = [",".join(names)] + [",".join(str(v) for v in r) for r in rows]
+        (directory / f"{stem}.csv").write_text("\n".join(lines) + "\n", encoding="utf-8")
+    if "txt" in formats:
+        def cell(v):
+            return f'"{v}"' if isinstance(v, str) and " " in v else str(v)
+
+        lines = [f"# {table}", "# units:", "  ".join(names)]
+        lines += ["  ".join(cell(v) for v in r) for r in rows]
+        (directory / f"{stem}.txt").write_text("\n".join(lines) + "\n", encoding="utf-8")
+    if "h5" in formats:
+        with h5py.File(directory / f"{base}.h5", "a") as f:
+            f.attrs["formatVersion"] = np.int32(1)
+            group = f.create_group(table)
+            for name in sorted(names):
+                values = columns[name]
+                if values and isinstance(values[0], str):
+                    group.create_dataset(name, data=values, dtype=h5py.string_dtype())
+                elif values and isinstance(values[0], int):
+                    group.create_dataset(name, data=np.asarray(values, dtype="i8"))
+                else:
+                    group.create_dataset(name, data=np.asarray(values, dtype="f8"))
+    if "root" in formats:
+        uproot = pytest.importorskip("uproot")
+        ak = pytest.importorskip("awkward")
+        data = {}
+        for name in names:
+            values = columns[name]
+            data[name] = (
+                ak.Array(values) if values and isinstance(values[0], str)
+                else np.asarray(values, dtype="f8")
+            )
+        path = directory / f"{base}.root"
+        opener = uproot.update if path.exists() else uproot.recreate
+        with opener(path) as f:
+            f[table] = data
