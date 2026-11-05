@@ -193,6 +193,30 @@
         "ticket": "05-physics-and-tracks",
         "commit": "bbce765"
       }
+    },
+    {
+      "at": "2026-11-05T20:52:53.774Z",
+      "event": "ticket_started",
+      "phase": "ship",
+      "files": [
+        "02-plan/tickets/06-prechemical-new-layout.md",
+        "03-implement/06-prechemical-new-layout/commit-log.md"
+      ],
+      "detail": {
+        "ticket": "06-prechemical-new-layout"
+      }
+    },
+    {
+      "at": "2026-11-05T20:55:19.959Z",
+      "event": "ticket_done",
+      "phase": "ship",
+      "files": [
+        "03-implement/06-prechemical-new-layout/commit-log.md"
+      ],
+      "detail": {
+        "ticket": "06-prechemical-new-layout",
+        "commit": "f5f587f"
+      }
     }
   ],
   "current_phase": "ship",
