@@ -1,0 +1,3 @@
+run,event,primaryLength_nm,primaryEkinStart_keV,primaryEkinEnd_keV,primaryEnd,secondaryFirstGenLength_nm,nSecondaryFirstGen,secondaryAllLength_nm,nSecondaryAll
+0,0,2426.914921419001,10,2.4999999999999998e-05,stopped,3810.7484505153975,214,6164.274911613755,506
+0,1,1838.4890234762668,10,2.4999999999999998e-05,stopped,2664.104030592024,148,6623.137101552316,517

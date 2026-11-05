@@ -241,6 +241,12 @@ meso = dump.meso                  # SpeciesMesoSpatialFile (SpeciesMesoSpatial.h
 
 `load_species()`, `load_reactions()` and `load_reaction_table()` below are built on these classes. A missing data file raises `FileNotFoundError` naming the file.
 
+### Standardized output layout (dnachem-min >= 0.5)
+
+dnachem-min writes each Output product (Species, SpeciesMeso, Reactions, ReactionsCatalog, PhysicsInteractions, TrackLengths, PreChemical) in the formats listed in the manifest's `outputFormats` (csv, h5, root, txt). A Dump whose manifest has `outputFormats` is read in this layout; one without it is read as the legacy layout, and both give the same accessors and columns. The reader takes the first available format in the order **csv > h5 > root > txt**, restricted to the manifest list and the listed files, and returns identical frames whichever format it read (`int64`, `float64`, `string`). Reading `.root` needs `uproot`: `pip install g4utils[root]`.
+
+New columns: per-event statistics (`nEvents`, `countSum`, `countSumSq`, `countMean`, `countStdErr`, `gSum`, `gSumSq`, `gMean`, `gStdErr`; NaN for legacy dumps), `binStart_ns`/`binEnd_ns` in `reactions()`, and `time_ns` in `species()`. `species()["G"]` is now the stored per-event `gMean`; legacy dumps keep the pooled `number / (E/100)`. `ReactionsCatalog` replaces `ReactionsMetadata`. `TrackLengths` columns are renamed `primaryEkinStart_keV`, `secondaryFirstGenLength_nm` and `secondaryAllLength_nm` (legacy files are renamed on read). `prechemical_records()` returns `parentTrackId`, `modification`, `level`, `parentX_nm`... from per-event csv/txt files or a single `PreChemical.h5`/`.root`; legacy dumps get the same names added next to the old ones (`level` is NaN).
+
 ### Physical interactions and track lengths
 
 `Dump.physical_interactions(*, per_event=False)` reads `PhysicsInteractions.csv` with the writer's raw `label` strings and integer `count` values. Counts are dimensionless process firing totals for the dump. With `per_event=True`, it adds `count_per_event = count / manifest.totalEvents`, a mean number of firings per event. This requires a finite positive event total. It is not a G value.
@@ -470,7 +476,7 @@ manifest.show()  # display() using IPython
 
 ## SpeciesMesoSpatial: reading the mesoscopic spatial state
 
-dnachem-min writes `SpeciesMesoSpatial.h5` when a macro sets `/chem/meso/spatialOutput true`: for each run, event and record time, the occupied cells of the mesoscopic mesh with their molecule counts per species. `g4utils.HDF5.SpeciesMesoSpatialFile` reads one such file lazily. It indexes runs, events and snapshots when opened and reads the arrays of a snapshot only on request. It reads a single file: it does not look for it inside a Dump.
+dnachem-min writes `SpeciesMesoSpatial.h5` when a macro sets `/output/speciesMesoSpatial/format h5`: for each run, event and record time, the occupied cells of the mesoscopic mesh with their molecule counts per species. `g4utils.HDF5.SpeciesMesoSpatialFile` reads one such file lazily. It indexes runs, events and snapshots when opened and reads the arrays of a snapshot only on request. It reads a single file: it does not look for it inside a Dump.
 
 ```python
 from g4utils.HDF5 import SpeciesMesoSpatialFile

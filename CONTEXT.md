@@ -98,7 +98,7 @@ use the plain filename even when data files have a prefix. A root `Manifest.json
 can be a results index (`kind: "resultsIndex"` with `dumps` entries), or a plain
 Dump manifest with an added `dumps` array that includes itself. An index alone is
 not a Dump manifest and its event totals are not calculation metadata.
-_Avoid_: "metadata" (collides with `ReactionsMetadata.csv`).
+_Avoid_: "metadata" (collides with the legacy `ReactionsMetadata.csv`).
 
 **Dump key**:
 The selected manifest's resolved path relative to its discovery root, with POSIX
@@ -146,8 +146,23 @@ species and reactions: radicals carry no `*` mark.
 _Avoid_: radical notation (`OH*`, `H*`).
 
 **Reaction table**:
-The list of reactions declared in a Dump's `ReactionsMetadata.csv`, one row per
+The list of reactions declared in a Dump's `ReactionsCatalog` (legacy dumps: `ReactionsMetadata.csv`), one row per
 reaction, with its reactants and products as Short names (with stoichiometric
 repeats). A reaction may have no products. Describes the chemistry, not what happened:
 counts live in the reaction tallies.
 _Avoid_: "reaction metadata" (collides with Manifest wording), "reaction list".
+
+**Output product**:
+One named table dnachem-min writes per Dump (Species, SpeciesMeso, Reactions, ReactionsCatalog,
+PhysicsInteractions, TrackLengths, PreChemical). The Manifest `outputFormats` maps each product to the formats written.
+_Avoid_: "output file" (one product can span several files).
+
+**Output format**:
+One of csv, h5, root, txt, holding the same Output product table. The reader takes the first
+available in the order csv, h5, root, txt, restricted to the manifest list and listed files. A Dump
+with `outputFormats` uses this standardized layout; without it, the legacy layout is read.
+
+**Per-event statistics**:
+Mean, standard error and sum of squares of counts (and of G) over the events of a Dump
+(`countMean`, `countStdErr`, `gMean`, `gStdErr`, ...), stored by the writer in the standardized layout.
+Legacy dumps lack them: the columns are NaN, and G keeps the pooled `number / (E/100)`.

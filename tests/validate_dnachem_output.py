@@ -152,9 +152,34 @@ def check_prechemical(dump: Dump) -> dict:
             "rows_with_missing_final_positions": int(actual[columns].isna().any(axis=1).sum())}
 
 
+def check_standardized_dump(dump: Dump, manifest: dict, *, meso: bool) -> dict:
+    """New layout: every listed product loads, is non-empty and carries provenance."""
+    formats = manifest["outputFormats"]
+    accessors = {
+        "species": dump.species, "reactions": dump.reactions,
+        "physicsInteractions": dump.physical_interactions, "trackLengths": dump.track_lengths,
+        "preChemical": lambda: dump.prechemical_records(allow_missing=True),
+    }
+    if meso:
+        accessors["speciesMeso"] = dump.meso_species
+    result = {"manifest": str(dump.manifest_path), "events": manifest.get("totalEvents"),
+              "layout": "standardized"}
+    for product, accessor in accessors.items():
+        if not formats.get(product):
+            continue
+        frame = accessor()
+        provenance(dump, frame)
+        require(len(frame) > 0 or product == "preChemical", f"{product} is empty")
+        result[product] = {"rows": len(frame)}
+    require(dump.particle_g_estimates().mean_event_G.notna().all(), "Missing stored G")
+    return result
+
+
 def check_dump(path: Path, *, meso: bool) -> dict:
     dump = Dump.from_manifest(path if path.is_file() else path / "Manifest.json")
     manifest = raw_manifest(dump.manifest_path)
+    if manifest.get("outputFormats") is not None:
+        return check_standardized_dump(dump, manifest, meso=meso)
     physical_raw = raw_csv(selected_file(dump, "PhysicsInteractions.csv"))
     physical = dump.physical_interactions(per_event=True)
     compare_columns(physical, physical_raw, "physical CSV")
