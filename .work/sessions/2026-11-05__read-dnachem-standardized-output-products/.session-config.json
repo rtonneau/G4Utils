@@ -169,6 +169,30 @@
         "ticket": "04-reactions-and-catalog",
         "commit": "492aa8d"
       }
+    },
+    {
+      "at": "2026-11-05T20:50:31.368Z",
+      "event": "ticket_started",
+      "phase": "ship",
+      "files": [
+        "02-plan/tickets/05-physics-and-tracks.md",
+        "03-implement/05-physics-and-tracks/commit-log.md"
+      ],
+      "detail": {
+        "ticket": "05-physics-and-tracks"
+      }
+    },
+    {
+      "at": "2026-11-05T20:52:49.923Z",
+      "event": "ticket_done",
+      "phase": "ship",
+      "files": [
+        "03-implement/05-physics-and-tracks/commit-log.md"
+      ],
+      "detail": {
+        "ticket": "05-physics-and-tracks",
+        "commit": "bbce765"
+      }
     }
   ],
   "current_phase": "ship",
