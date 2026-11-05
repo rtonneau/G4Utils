@@ -137,3 +137,20 @@ def test_fractional_event_count_is_not_truncated(tmp_path, make_dump, n_event):
     _one_row(path, n_event=n_event, sum_g=4, sum_g2=16)
     with pytest.raises(ValueError, match=r'Species_nt_species\.csv.*nEvent'):
         Dump(path).particle_g_estimates(assume_valid_event_g=True)
+
+
+def test_standardized_estimates_use_stored_statistics(tmp_path, make_standardized_dump):
+    path = make_standardized_dump(tmp_path, "new", energy_deposit_eV=400)
+    result = Dump(path).particle_g_estimates()
+    assert result["mean_event_G"].tolist() == [0.5, 0.4, 0.3]
+    assert result["mean_event_G_sem"].tolist() == [0.25, 0.25, 0.25]
+    assert str(result["mean_event_G_sem"].dtype) == "Float64"
+    assert result["aggregate_energy_G"].tolist() == pytest.approx([10 * 100 / 400, 8 * 100 / 400, 6 * 100 / 400])
+    assert result["G"].tolist() == [0.5, 0.4, 0.3]
+    assert "speciesName" in result and "time_s" in result
+
+
+def test_standardized_estimates_require_energy(tmp_path, make_standardized_dump):
+    path = make_standardized_dump(tmp_path, "new", energy_deposit_eV=0)
+    with pytest.raises(ValueError, match="totalEnergyDeposit_eV"):
+        Dump(path).particle_g_estimates()

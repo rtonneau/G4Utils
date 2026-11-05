@@ -310,3 +310,177 @@ def write_species_meso_spatial(
 @pytest.fixture
 def species_meso_spatial_file(tmp_path) -> Path:
     return write_species_meso_spatial(tmp_path / "SpeciesMesoSpatial.h5")
+
+
+def write_standardized_table(directory, stem, table, columns, formats, *, container=None):
+    """Write one table (dict of column to list) in the requested formats.
+
+    Mirrors dnachem-min: csv/txt use ``<stem>.<ext>``; h5 holds a group named
+    ``table`` (datasets alphabetical, floats as f8, text as objects) and root a
+    TTree of that name with every number stored as double.
+    """
+    directory = Path(directory)
+    directory.mkdir(parents=True, exist_ok=True)
+    names = list(columns)
+    rows = list(zip(*columns.values()))
+    base = container or stem
+    if "csv" in formats:
+        lines = [",".join(names)] + [",".join(str(v) for v in r) for r in rows]
+        (directory / f"{stem}.csv").write_text("\n".join(lines) + "\n", encoding="utf-8")
+    if "txt" in formats:
+        def cell(v):
+            return f'"{v}"' if isinstance(v, str) and " " in v else str(v)
+
+        lines = [f"# {table}", "# units:", "  ".join(names)]
+        lines += ["  ".join(cell(v) for v in r) for r in rows]
+        (directory / f"{stem}.txt").write_text("\n".join(lines) + "\n", encoding="utf-8")
+    if "h5" in formats:
+        with h5py.File(directory / f"{base}.h5", "a") as f:
+            f.attrs["formatVersion"] = np.int32(1)
+            group = f.create_group(table)
+            for name in sorted(names):
+                values = columns[name]
+                if values and isinstance(values[0], str):
+                    group.create_dataset(name, data=values, dtype=h5py.string_dtype())
+                elif values and isinstance(values[0], int):
+                    group.create_dataset(name, data=np.asarray(values, dtype="i8"))
+                else:
+                    group.create_dataset(name, data=np.asarray(values, dtype="f8"))
+    if "root" in formats:
+        uproot = pytest.importorskip("uproot")
+        ak = pytest.importorskip("awkward")
+        data = {}
+        for name in names:
+            values = columns[name]
+            data[name] = (
+                ak.Array(values) if values and isinstance(values[0], str)
+                else np.asarray(values, dtype="f8")
+            )
+        path = directory / f"{base}.root"
+        opener = uproot.update if path.exists() else uproot.recreate
+        with opener(path) as f:
+            f[table] = data
+
+
+_STD_STATS = {"nEvents": 2, "countSum": 10, "countSumSq": 52, "countMean": 5.0, "countStdErr": 1.0}
+
+
+def _std_species_table(rows):
+    """Columns for a Species/SpeciesMeso table; rows are (time, name, countSum, gMean)."""
+    return {
+        "time_ns": [float(r[0]) for r in rows],
+        "species": [r[1] for r in rows],
+        "nEvents": [2] * len(rows),
+        "countSum": [float(r[2]) for r in rows],
+        "countSumSq": [float(r[2]) ** 2 for r in rows],
+        "countMean": [float(r[2]) / 2 for r in rows],
+        "countStdErr": [0.5] * len(rows),
+        "gSum": [2.0 * r[3] for r in rows],
+        "gSumSq": [2.0 * r[3] ** 2 for r in rows],
+        "gMean": [float(r[3]) for r in rows],
+        "gStdErr": [0.25] * len(rows),
+    }
+
+
+STD_REACTIONS = {
+    "reactionId": [1, 25, 25],
+    "binStart_ns": [0.0, 0.0, 0.001],
+    "binEnd_ns": [0.001, 0.001, 0.01],
+    "nEvents": [2, 2, 2],
+    "countSum": [646, 4436, 9000],
+    "countSumSq": [417316.0, 19678096.0, 81000000.0],
+    "countMean": [323.0, 2218.0, 4500.0],
+    "countStdErr": [1.0, 2.0, 3.0],
+}
+STD_CATALOG = {
+    "reactionId": [1, 25],
+    "reaction": ["H3O^1 + OH^-1 -> (no products)", "°OH^0 + °OH^0 -> H2O2^0"],
+}
+STD_PHYSICS = {
+    "process": ["e-_G4DNAElastic", "e-_G4DNAExcitation"],
+    "nEvents": [2, 2],
+    "countSum": [48466, 107],
+    "countSumSq": [1174657780.0, 5749.0],
+    "countMean": [24233.0, 53.5],
+    "countStdErr": [301.0, 3.5],
+}
+STD_TRACKS = {
+    "run": [0, 0],
+    "event": [0, 1],
+    "primaryLength_nm": [2426.914921, 1838.489023],
+    "primaryEkinStart_keV": [10.0, 10.0],
+    "primaryEkinEnd_keV": [2.5e-05, 2.5e-05],
+    "primaryEnd": ["stopped", "stopped"],
+    "secondaryFirstGenLength_nm": [3810.748451, 2664.104031],
+    "nSecondaryFirstGen": [214, 148],
+    "secondaryAllLength_nm": [6164.274912, 6623.137102],
+    "nSecondaryAll": [506, 517],
+}
+STD_SPECIES_ROWS = [(0.001, "°OH^0", 10, 0.5), (0.001, "e_aq^-1", 8, 0.4), (5.0, "°OH^0", 6, 0.3)]
+STD_MESO_ROWS = [(5.0, "H2O2^0", 4, 0.2), (10.0, "°OH^0", 0, 0.0)]
+
+
+@pytest.fixture
+def make_standardized_dump():
+    """Factory for a dnachem-min Dump in the standardized output layout."""
+
+    def _make(parent, name, *, formats=("csv",), energy_deposit_eV=400.0, manifest_extra=None):
+        d = Path(parent) / name
+        d.mkdir(parents=True, exist_ok=True)
+        listing = list(formats)
+        products = {
+            "species": listing,
+            "speciesMeso": listing,
+            "reactions": listing,
+            "physicsInteractions": listing,
+            "trackLengths": listing,
+        }
+        manifest = {
+            "schemaVersion": 1,
+            "hdf5": "h5" in formats,
+            "outputFormats": products,
+            "chemistry": "PureWater",
+            "pH": 7,
+            "scavengers": [],
+            "mesoEnabled": True,
+            "mesoSpatialOutput": False,
+            "handOverTime_ns": 5,
+            "chemistryEndTime_ns": 1000,
+            "totalEvents": 2,
+            "totalEnergyDeposit_eV": energy_deposit_eV,
+            "runs": [{"run": 0, "events": 2, "particle": "e-", "beamEnergy_keV": 10}],
+        }
+        manifest.update(manifest_extra or {})
+        write_standardized_table(
+            d, "Species", "species", _std_species_table(STD_SPECIES_ROWS), formats
+        )
+        write_standardized_table(
+            d, "SpeciesMeso", "speciesMeso", _std_species_table(STD_MESO_ROWS), formats
+        )
+        write_standardized_table(
+            d, "Reactions", "reactions", STD_REACTIONS, formats
+        )
+        write_standardized_table(
+            d, "ReactionsCatalog", "reactionCatalog", STD_CATALOG, formats,
+            container="Reactions",
+        )
+        write_standardized_table(
+            d, "PhysicsInteractions", "physicsInteractions", STD_PHYSICS, formats
+        )
+        write_standardized_table(
+            d, "TrackLengths", "trackLengths", STD_TRACKS, formats
+        )
+        files = []
+        for stem in (
+            "Species", "SpeciesMeso", "Reactions", "ReactionsCatalog",
+            "PhysicsInteractions", "TrackLengths",
+        ):
+            for fmt in formats:
+                if fmt in ("h5", "root") and stem == "ReactionsCatalog":
+                    continue
+                files.append(f"{stem}.{fmt}")
+        manifest.setdefault("files", files)
+        (d / "Manifest.json").write_text(json.dumps(manifest, indent=2), encoding="utf-8")
+        return d
+
+    return _make

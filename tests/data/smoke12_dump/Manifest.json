@@ -1,0 +1,158 @@
+{
+ "schemaVersion": 1,
+ "timestamp": "2026-11-04T16:50:59",
+ "elapsedSinceStart_s": 20.5711311,
+ "elapsedSincePreviousDump_s": 20.5711311,
+ "geant4Version": "geant4-11-04-patch-01",
+ "hdf5": true,
+ "outputFormats": {
+  "species": [
+   "csv",
+   "h5",
+   "root"
+  ],
+  "speciesMeso": [
+   "csv",
+   "h5",
+   "root"
+  ],
+  "reactions": [
+   "csv",
+   "h5",
+   "root"
+  ],
+  "physicsInteractions": [
+   "csv",
+   "h5",
+   "root"
+  ],
+  "trackLengths": [
+   "csv",
+   "h5",
+   "root"
+  ]
+ },
+ "macro": "C:\\DEV\\GEANT4\\SIM\\dnachem-min\\build\\macro\\smoke12all.in",
+ "chemistry": "PureWater",
+ "scavengers": [],
+ "pH": 7,
+ "halfBox_um": 500,
+ "chemistryEndTime_ns": 1000000,
+ "timeStepModel": "IRT_syn",
+ "mesoEnabled": true,
+ "chemistryModel": "IRT_syn+mesoscopic",
+ "handOverTime_ns": 5,
+ "voxelSize_nm": 6.25,
+ "mesoPixels": 65536,
+ "mesoTimesPerDecade": 10,
+ "mesoSpatialOutput": false,
+ "runMode": "Serial",
+ "threads": 1,
+ "outputDirAsConfigured": "C:/DEV/GEANT4/SIM/dnachem-min/.scratch/tests/2026-11-04__data-output-should-be-standardized-each-type-of-data-should-have/smoke12/all",
+ "outputDirAbsolute": "C:\\DEV\\GEANT4\\SIM\\dnachem-min\\.scratch\\tests\\2026-11-04__data-output-should-be-standardized-each-type-of-data-should-have\\smoke12\\all",
+ "prefix": "",
+ "subdir": "",
+ "totalEvents": 2,
+ "totalEnergyDeposit_eV": 20000,
+ "trackLengths": {
+  "events": 2,
+  "stopped": 2,
+  "escaped": 0,
+  "killed": 0,
+  "primaryLength_nm": {
+   "mean": 2132.70197245,
+   "sem": 294.212948971
+  },
+  "primaryEkin0_keV": {
+   "mean": 10,
+   "sem": 0
+  },
+  "primaryEkinEnd_keV": {
+   "mean": 2.5e-05,
+   "sem": 0
+  },
+  "secondaryFirstGen_nm": {
+   "mean": 3237.42624055,
+   "sem": 573.322209962
+  },
+  "nSecondaryFirstGen": {
+   "mean": 181,
+   "sem": 33
+  },
+  "secondaryAll_nm": {
+   "mean": 6393.70600658,
+   "sem": 229.431094969
+  },
+  "nSecondaryAll": {
+   "mean": 511.5,
+   "sem": 5.5
+  }
+ },
+ "files": [
+  "PhysicsInteractions.csv",
+  "PhysicsInteractions.h5",
+  "PhysicsInteractions.root",
+  "Reactions.csv",
+  "Reactions.h5",
+  "Reactions.root",
+  "ReactionsCatalog.csv",
+  "Species.csv",
+  "Species.h5",
+  "Species.root",
+  "SpeciesMeso.csv",
+  "SpeciesMeso.h5",
+  "SpeciesMeso.root",
+  "TrackLengths.csv",
+  "TrackLengths.h5",
+  "TrackLengths.root"
+ ],
+ "runs": [
+  {
+   "run": 0,
+   "events": 2,
+   "particle": "e-",
+   "beamEnergy_keV": 10,
+   "position_um": [
+    0,
+    0,
+    0
+   ],
+   "direction": [
+    0,
+    0,
+    1
+   ],
+   "energyDeposit_eV": 20000,
+   "seed": 12345,
+   "wallTime_s": 18.5154279
+  }
+ ],
+ "dumps": [
+  {
+   "folder": "",
+   "prefix": "",
+   "manifest": "Manifest.json",
+   "timestamp": "2026-11-04T16:50:59",
+   "events": 2,
+   "runs": [
+    {
+     "run": 0,
+     "events": 2,
+     "seed": 12345,
+     "particle": "e-",
+     "beamEnergy_keV": 10,
+     "position_um": [
+      0,
+      0,
+      0
+     ],
+     "direction": [
+      0,
+      0,
+      1
+     ]
+    }
+   ]
+  }
+ ]
+}

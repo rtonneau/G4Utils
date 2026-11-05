@@ -94,3 +94,13 @@ def test_table_richer_columns(tmp_path, make_dump):
     assert a["O2_molarity_M"] == a["O2_molarity_M"]
     assert pd.isna(b["chemistryModel"])
     assert pd.isna(b["wallTime_s"])
+
+
+def test_table_includes_output_formats(tmp_path, make_dump):
+    make_dump(
+        tmp_path / "results", "run_a",
+        manifest_extra={"hdf5": True, "outputFormats": {"species": ["csv"]}},
+    )
+    df = Simulation(tmp_path).table()
+    assert df.loc[0, "outputFormats"] == {"species": ("csv",)}
+    assert df.loc[0, "hdf5"]

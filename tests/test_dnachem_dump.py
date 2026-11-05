@@ -127,3 +127,59 @@ def test_meso_missing_message(tmp_path, make_dump):
     path = make_dump(tmp_path, "run_a", manifest_extra={"mesoSpatialOutput": True})
     with pytest.raises(FileNotFoundError, match="missing"):
         Dump(path).meso
+
+
+def test_standardized_species_columns_and_g(tmp_path, make_standardized_dump):
+    dump = Dump(make_standardized_dump(tmp_path, "new", energy_deposit_eV=400))
+    frame = dump.species()
+    assert len(frame) == 3
+    assert frame["speciesName"].tolist() == ["°OH^0", "e_aq^-1", "°OH^0"]
+    assert frame["species"].tolist() == ["OH", "e_aq", "OH"]
+    assert frame["time_s"].tolist() == pytest.approx([1e-12, 1e-12, 5e-9])
+    assert frame["G"].tolist() == [0.5, 0.4, 0.3]  # gMean, not countSum / (E/100)
+    assert {"nEvents", "countSum", "gStdErr", "dump", "chemistry"} <= set(frame.columns)
+
+
+def test_legacy_species_maps_onto_standardized_columns(tmp_path, make_dump):
+    frame = Dump(make_dump(tmp_path, "old", energy_deposit_eV=400)).species()
+    first = frame.iloc[0]
+    assert first["nEvents"] == 100
+    assert first["countSum"] == 400000
+    assert first["countMean"] == 4000
+    assert first["gSum"] == 0.5 and first["gMean"] == pytest.approx(0.005)
+    assert first["time_ns"] == pytest.approx(0.001)
+    assert first["G"] == pytest.approx(400000 / (400 / 100))  # legacy pooled ratio
+    assert frame[["countSumSq", "countStdErr", "gStdErr"]].isna().all().all()
+
+
+@pytest.mark.parametrize("fmt", ["csv", "h5", "root", "txt"])
+def test_standardized_species_every_format(tmp_path, make_standardized_dump, fmt):
+    frame = Dump(make_standardized_dump(tmp_path, "new", formats=(fmt,))).species()
+    assert frame["G"].tolist() == pytest.approx([0.5, 0.4, 0.3])
+    assert frame["speciesName"].tolist() == ["°OH^0", "e_aq^-1", "°OH^0"]
+
+
+@pytest.mark.parametrize("fmt", ["csv", "h5", "root", "txt"])
+def test_standardized_reactions_every_format(tmp_path, make_standardized_dump, fmt):
+    dump = Dump(make_standardized_dump(tmp_path, "new", formats=(fmt,)))
+    frame = dump.reactions()
+    assert frame["reactionId"].tolist() == [1, 25, 25]
+    assert frame["binStart_ns"].tolist() == [0.0, 0.0, 0.001]
+    assert frame["binEnd_ns"].tolist() == [0.001, 0.001, 0.01]
+    assert frame["count"].tolist() == [646, 4436, 9000]
+    assert frame["time_s"].tolist() == pytest.approx([1e-12, 1e-12, 1e-11])
+    assert frame["reaction"].tolist()[1] == "°OH^0 + °OH^0 -> H2O2^0"
+    assert frame["countStdErr"].tolist() == [1.0, 2.0, 3.0]
+    table = dump.reaction_table()
+    assert table["equation"].tolist() == ["H3O+ + OH- -> (no products)", "OH + OH -> H2O2"]
+
+
+def test_legacy_reactions_mapped_onto_standardized_columns(tmp_path, make_dump):
+    frame = Dump(make_dump(tmp_path, "old")).reactions()
+    assert frame["binEnd_ns"].tolist() == pytest.approx([0.001, 0.001, 999.999])
+    assert frame["binStart_ns"].isna().all()
+    assert frame["nEvents"].tolist() == [100, 100, 100]
+    assert frame["countSum"].tolist() == [646.0, 4436.0, 9000.0]
+    assert frame["countMean"].tolist() == pytest.approx([6.46, 44.36, 90.0])
+    assert frame["count"].tolist() == [646, 4436, 9000]
+    assert frame["countStdErr"].isna().all()

@@ -52,3 +52,20 @@ def test_load_species_missing_file_raises(tmp_path, make_dump):
     (d / "Species_nt_species.csv").unlink()
     with pytest.raises(FileNotFoundError, match="Species_nt_species.csv"):
         load_species(d)
+
+
+def test_load_species_on_both_layouts(tmp_path, make_dump, make_standardized_dump):
+    make_dump(tmp_path / "results", "old")
+    make_standardized_dump(tmp_path / "results", "new")
+    frame = load_species(tmp_path)
+    assert set(frame["dump"]) == {"old", "new"}
+    assert {"G", "gMean", "speciesName", "time_s"} <= set(frame.columns)
+
+
+def test_load_reactions_on_both_layouts(tmp_path, make_dump, make_standardized_dump):
+    make_dump(tmp_path / "results", "old")
+    make_standardized_dump(tmp_path / "results", "new")
+    frame = load_reactions(tmp_path)
+    assert set(frame["dump"]) == {"old", "new"}
+    assert {"binStart_ns", "binEnd_ns", "countSum", "reaction", "time_s"} <= set(frame.columns)
+    assert len(frame) == 6

@@ -281,3 +281,49 @@ def test_dump_columns_unchanged_by_model_fields():
         "dump", "chemistry", "pH", "totalEvents", "totalEnergyDeposit_eV",
         "O2_molarity_M", "particle", "beamEnergy_keV",
     }
+
+
+STANDARDIZED = Path(__file__).parent / "data" / "Manifest_standardized.json"
+
+
+def test_standardized_manifest_fields_and_summary():
+    m = read_manifest(STANDARDIZED)
+    assert m.hdf5 is True
+    assert m.outputFormats["species"] == ("txt", "csv", "h5", "root")
+    assert m.outputFormats["speciesMesoSpatial"] == ("h5", "root")
+    assert "timeStepModel" in m.raw
+    text = str(m)
+    assert "hdf5" in text and "outputFormats" in text and "species: txt, csv, h5, root" in text
+    assert "outputFormats" in m._repr_html_()
+
+
+def test_legacy_manifest_has_no_output_formats():
+    m = read_manifest(REAL)
+    assert m.outputFormats is None and m.hdf5 is None
+
+
+@pytest.mark.parametrize(
+    "bad", [{"outputFormats": ["csv"]}, {"outputFormats": {"species": "csv"}},
+            {"outputFormats": {"species": [1]}}, {"hdf5": "yes"}],
+)
+def test_output_formats_validation(bad):
+    with pytest.raises(ValueError):
+        Manifest.from_dict(bad)
+
+
+def test_dump_layout_detection_and_empty_product(tmp_path, make_dump):
+    from g4utils.DnaChem.dump import Dump
+
+    legacy = make_dump(tmp_path / "a", "legacy")
+    assert Dump(legacy)._layout == "legacy"
+    assert Dump(legacy).output_formats == {}
+    new = make_dump(
+        tmp_path / "b", "new",
+        manifest_extra={"outputFormats": {"species": ["csv"], "reactions": []}},
+    )
+    dump = Dump(new)
+    assert dump._layout == "standardized"
+    assert dump.output_formats == {"species": ("csv",), "reactions": ()}
+    assert dump._product_formats("species") == ("csv",)
+    with pytest.raises(FileNotFoundError, match="reactions.*outputFormats"):
+        dump._product_formats("reactions")

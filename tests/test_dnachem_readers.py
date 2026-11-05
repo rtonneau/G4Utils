@@ -4,10 +4,10 @@ import pandas as pd
 import pytest
 
 from g4utils.DnaChem import Dump
-from g4utils.DnaChem.readers import TRACK_COLUMNS
+from g4utils.DnaChem.readers import LEGACY_TRACK_COLUMNS, TRACK_COLUMNS
 
 
-TRACK_HEADER = ",".join(TRACK_COLUMNS)
+TRACK_HEADER = ",".join(LEGACY_TRACK_COLUMNS)
 TRACK_ROWS = [
     "0,0,3940.635938,10.000000,0.000025,stopped,4192.985256,226,6309.350231,511",
     "0,1,2534.414142,10.000000,0.000025,stopped,3655.026025,203,6768.150826,503",
@@ -154,4 +154,63 @@ def test_track_summary_inconsistency(tmp_path, make_dump, change):
     path = make_dump(tmp_path, "run_a", manifest_extra={"totalEvents": 2, "trackLengths": summary})
     _csv(path, "TrackLengths.csv", TRACK_HEADER, TRACK_ROWS)
     with pytest.raises(ValueError, match="trackLengths"):
+        Dump(path).track_lengths()
+
+
+@pytest.mark.parametrize("fmt", ["csv", "h5", "root", "txt"])
+def test_standardized_physical_interactions(tmp_path, make_standardized_dump, fmt):
+    dump = Dump(make_standardized_dump(tmp_path, "new", formats=(fmt,)))
+    frame = dump.physical_interactions()
+    assert frame["process"].tolist() == ["e-_G4DNAElastic", "e-_G4DNAExcitation"]
+    assert frame["countSum"].tolist() == [48466, 107]
+    assert frame["count"].tolist() == [48466, 107]
+    per_event = dump.physical_interactions(per_event=True)
+    assert per_event["count_per_event"].tolist() == [24233.0, 53.5]  # countMean
+
+
+def test_legacy_physical_interactions_mapped(tmp_path, make_dump):
+    path = make_dump(tmp_path, "run_a", manifest_extra={"totalEvents": 4})
+    _csv(path, "PhysicsInteractions.csv", "label,count", ["a,8", "b,2"])
+    frame = Dump(path).physical_interactions()
+    assert frame["label"].tolist() == frame["process"].tolist() == ["a", "b"]
+    assert frame["countSum"].tolist() == [8.0, 2.0]
+    assert frame["countMean"].tolist() == [2.0, 0.5]
+    assert frame["nEvents"].tolist() == [4, 4]
+    assert frame["countStdErr"].isna().all()
+
+
+@pytest.mark.parametrize("fmt", ["csv", "h5", "root", "txt"])
+def test_standardized_track_lengths(tmp_path, make_standardized_dump, fmt):
+    summary = {
+        "events": 2, "stopped": 2, "escaped": 0, "killed": 0,
+        "primaryEkin0_keV": {"mean": 10, "sem": 0},
+        "secondaryFirstGen_nm": {"mean": 3237.426241},
+    }
+    dump = Dump(make_standardized_dump(
+        tmp_path, "new", formats=(fmt,), manifest_extra={"trackLengths": summary}
+    ))
+    frame = dump.track_lengths()
+    assert list(frame.columns[:10]) == list(TRACK_COLUMNS)
+    assert frame["nSecondaryAll"].tolist() == [506, 517]
+    assert frame["primaryEnd"].tolist() == ["stopped", "stopped"]
+
+
+def test_standardized_track_lengths_checks(tmp_path, make_standardized_dump):
+    wrong = {"events": 5}
+    dump = Dump(make_standardized_dump(tmp_path, "a", manifest_extra={"trackLengths": wrong}))
+    with pytest.raises(ValueError, match="trackLengths.events"):
+        dump.track_lengths()
+    dump = Dump(make_standardized_dump(tmp_path, "b", manifest_extra={"totalEvents": 5}))
+    with pytest.warns(UserWarning, match="totalEvents"):
+        dump.track_lengths()
+
+
+def test_standardized_track_lengths_bad_end(tmp_path, make_standardized_dump):
+    path = make_standardized_dump(tmp_path, "new")
+    text = (path / "TrackLengths.csv").read_text(encoding="utf-8").replace("stopped", "weird", 1)
+    (path / "TrackLengths.csv").write_text(text, encoding="utf-8")
+    with pytest.raises(ValueError, match="primaryEnd"):
+        Dump(path).track_lengths()
+    (path / "TrackLengths.csv").write_text(text.replace("weird", "stopped").replace("0,1,", "0,0,"), encoding="utf-8")
+    with pytest.raises(ValueError, match="duplicate"):
         Dump(path).track_lengths()

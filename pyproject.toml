@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "g4utils"
-version = "0.4.0"
+version = "0.5.0"
 description = "Readers and VTK export for G4Vox voxel HDF5 output from Geant4 simulations"
 readme = "README.md"
 requires-python = ">=3.10"
@@ -33,7 +33,9 @@ dependencies = [
 
 
 [project.optional-dependencies]
+root = ["uproot>=5.0"]
 dev = [
+    "uproot>=5.0",
     "pytest>=7.0",
     "pytest-cov>=4.0",
     "h5py-stubs>=0.1.2",

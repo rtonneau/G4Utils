@@ -1,0 +1,287 @@
+{
+  "session_id": "2026-11-05__read-dnachem-standardized-output-products",
+  "feature_name": "read-dnachem-standardized-output-products",
+  "scratch_dir": ".scratch/tests/2026-11-05__read-dnachem-standardized-output-products",
+  "created_at": "2026-11-05T20:26:09.477Z",
+  "template_version": 2,
+  "history": [
+    {
+      "at": "2026-11-05T20:26:09.477Z",
+      "event": "session_started",
+      "phase": "grill",
+      "files": [
+        "01-grill/resume.md"
+      ]
+    },
+    {
+      "at": "2026-11-05T20:30:34.781Z",
+      "event": "grill_written",
+      "phase": "plan-not-started",
+      "files": [
+        "01-grill/resume.md"
+      ]
+    },
+    {
+      "at": "2026-11-05T20:30:34.981Z",
+      "event": "plan_started",
+      "phase": "plan",
+      "files": [
+        "02-plan/plan.md"
+      ]
+    },
+    {
+      "at": "2026-11-05T20:38:50.797Z",
+      "event": "auto_started",
+      "phase": "plan",
+      "detail": {
+        "target": "finish",
+        "steps": "write:plan → ship → finish"
+      }
+    },
+    {
+      "at": "2026-11-05T20:39:45.462Z",
+      "event": "branch_created",
+      "phase": "plan",
+      "detail": {
+        "branch": "feat/read-standardized-output-products",
+        "base": "main"
+      }
+    },
+    {
+      "at": "2026-11-05T20:39:45.559Z",
+      "event": "plan_written",
+      "phase": "ship",
+      "files": [
+        "02-plan/plan.md",
+        "02-plan/tickets/01-manifest-and-layout.md",
+        "02-plan/tickets/02-table-reader.md",
+        "02-plan/tickets/03-species-and-g.md",
+        "02-plan/tickets/04-reactions-and-catalog.md",
+        "02-plan/tickets/05-physics-and-tracks.md",
+        "02-plan/tickets/06-prechemical-new-layout.md",
+        "02-plan/tickets/07-packaging-docs-regression.md"
+      ],
+      "detail": {
+        "tickets": 7
+      }
+    },
+    {
+      "at": "2026-11-05T20:42:25.165Z",
+      "event": "auto_started",
+      "phase": "ship",
+      "detail": {
+        "target": "finish",
+        "steps": "ship → finish"
+      }
+    },
+    {
+      "at": "2026-11-05T20:42:33.126Z",
+      "event": "ticket_started",
+      "phase": "ship",
+      "files": [
+        "02-plan/tickets/01-manifest-and-layout.md",
+        "03-implement/01-manifest-and-layout/commit-log.md"
+      ],
+      "detail": {
+        "ticket": "01-manifest-and-layout"
+      }
+    },
+    {
+      "at": "2026-11-05T20:43:33.446Z",
+      "event": "ticket_done",
+      "phase": "ship",
+      "files": [
+        "03-implement/01-manifest-and-layout/commit-log.md"
+      ],
+      "detail": {
+        "ticket": "01-manifest-and-layout",
+        "commit": "f683fb9"
+      }
+    },
+    {
+      "at": "2026-11-05T20:43:38.585Z",
+      "event": "ticket_started",
+      "phase": "ship",
+      "files": [
+        "02-plan/tickets/02-table-reader.md",
+        "03-implement/02-table-reader/commit-log.md"
+      ],
+      "detail": {
+        "ticket": "02-table-reader"
+      }
+    },
+    {
+      "at": "2026-11-05T20:45:48.822Z",
+      "event": "ticket_done",
+      "phase": "ship",
+      "files": [
+        "03-implement/02-table-reader/commit-log.md"
+      ],
+      "detail": {
+        "ticket": "02-table-reader",
+        "commit": "2c7086b"
+      }
+    },
+    {
+      "at": "2026-11-05T20:45:52.758Z",
+      "event": "ticket_started",
+      "phase": "ship",
+      "files": [
+        "02-plan/tickets/03-species-and-g.md",
+        "03-implement/03-species-and-g/commit-log.md"
+      ],
+      "detail": {
+        "ticket": "03-species-and-g"
+      }
+    },
+    {
+      "at": "2026-11-05T20:49:07.234Z",
+      "event": "ticket_done",
+      "phase": "ship",
+      "files": [
+        "03-implement/03-species-and-g/commit-log.md"
+      ],
+      "detail": {
+        "ticket": "03-species-and-g",
+        "commit": "eca6f5b"
+      }
+    },
+    {
+      "at": "2026-11-05T20:49:13.245Z",
+      "event": "ticket_started",
+      "phase": "ship",
+      "files": [
+        "02-plan/tickets/04-reactions-and-catalog.md",
+        "03-implement/04-reactions-and-catalog/commit-log.md"
+      ],
+      "detail": {
+        "ticket": "04-reactions-and-catalog"
+      }
+    },
+    {
+      "at": "2026-11-05T20:50:30.483Z",
+      "event": "ticket_done",
+      "phase": "ship",
+      "files": [
+        "03-implement/04-reactions-and-catalog/commit-log.md"
+      ],
+      "detail": {
+        "ticket": "04-reactions-and-catalog",
+        "commit": "492aa8d"
+      }
+    },
+    {
+      "at": "2026-11-05T20:50:31.368Z",
+      "event": "ticket_started",
+      "phase": "ship",
+      "files": [
+        "02-plan/tickets/05-physics-and-tracks.md",
+        "03-implement/05-physics-and-tracks/commit-log.md"
+      ],
+      "detail": {
+        "ticket": "05-physics-and-tracks"
+      }
+    },
+    {
+      "at": "2026-11-05T20:52:49.923Z",
+      "event": "ticket_done",
+      "phase": "ship",
+      "files": [
+        "03-implement/05-physics-and-tracks/commit-log.md"
+      ],
+      "detail": {
+        "ticket": "05-physics-and-tracks",
+        "commit": "bbce765"
+      }
+    },
+    {
+      "at": "2026-11-05T20:52:53.774Z",
+      "event": "ticket_started",
+      "phase": "ship",
+      "files": [
+        "02-plan/tickets/06-prechemical-new-layout.md",
+        "03-implement/06-prechemical-new-layout/commit-log.md"
+      ],
+      "detail": {
+        "ticket": "06-prechemical-new-layout"
+      }
+    },
+    {
+      "at": "2026-11-05T20:55:19.959Z",
+      "event": "ticket_done",
+      "phase": "ship",
+      "files": [
+        "03-implement/06-prechemical-new-layout/commit-log.md"
+      ],
+      "detail": {
+        "ticket": "06-prechemical-new-layout",
+        "commit": "f5f587f"
+      }
+    },
+    {
+      "at": "2026-11-05T20:55:21.004Z",
+      "event": "ticket_started",
+      "phase": "ship",
+      "files": [
+        "02-plan/tickets/07-packaging-docs-regression.md",
+        "03-implement/07-packaging-docs-regression/commit-log.md"
+      ],
+      "detail": {
+        "ticket": "07-packaging-docs-regression"
+      }
+    },
+    {
+      "at": "2026-11-05T20:58:54.458Z",
+      "event": "ticket_done",
+      "phase": "finish-pending",
+      "files": [
+        "03-implement/07-packaging-docs-regression/commit-log.md"
+      ],
+      "detail": {
+        "ticket": "07-packaging-docs-regression",
+        "commit": "d54bc75"
+      }
+    },
+    {
+      "at": "2026-11-05T20:59:03.761Z",
+      "event": "changelog_written",
+      "phase": "finish-pending",
+      "detail": {
+        "bump": "minor"
+      }
+    },
+    {
+      "at": "2026-11-05T20:59:16.694Z",
+      "event": "pr_opened",
+      "phase": "finish-pending",
+      "detail": {
+        "url": "https://github.com/rtonneau/G4Utils/pull/11"
+      }
+    },
+    {
+      "at": "2026-11-05T20:59:09.239Z",
+      "event": "session_finished",
+      "phase": "finished",
+      "files": [
+        "INDEX.md"
+      ]
+    }
+  ],
+  "current_phase": "finished",
+  "git": {
+    "branch": "feat/read-standardized-output-products",
+    "base_branch": "main",
+    "branch_created_at": "2026-11-05T20:39:45.462Z",
+    "pr_url": "https://github.com/rtonneau/G4Utils/pull/11"
+  },
+  "ship_mode": "inline",
+  "changelog": {
+    "bump": "minor",
+    "floor": "minor",
+    "reason": null,
+    "bullets": 1,
+    "path": ".work/changelog/2026-11-05__read-dnachem-standardized-output-products.md",
+    "written_at": "2026-11-05T20:59:03.729Z"
+  },
+  "finished_at": "2026-11-05T20:59:09.239Z"
+}

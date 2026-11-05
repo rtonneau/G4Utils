@@ -160,3 +160,80 @@ def test_unexpected_trailing_data(tmp_path, make_dump):
     _event(path, rows=[_line().ljust(sum(WIDTHS)) + "extra"])
     with pytest.raises(ValueError, match="trailing"):
         Dump(path).prechemical_records()
+
+
+# ---- standardized layout ------------------------------------------------------
+
+import json  # noqa: E402
+
+from tests.conftest import write_standardized_table  # noqa: E402
+
+STD_PRE = {
+    "run": [0, 0, 1], "event": [0, 0, 0], "parentTrackId": [1, 2, 3],
+    "molecule": ["H2O", "e_aq", "H2O"], "modification": ["0:4", "-1", "0:4"],
+    "level": [4, -1, 2], "energy_eV": [12.5, 0.025, 13.0],
+    "parentX_nm": [0.0, 1.0, 2.0], "parentY_nm": [0.5, 1.5, 2.5],
+    "parentZ_nm": [0.1, 1.1, 2.1], "x_nm": [0.2, 1.2, 2.2],
+    "y_nm": [0.3, 1.3, 2.3], "z_nm": [0.4, 1.4, 2.4],
+}
+
+
+def _std_prechem(tmp_path, formats=("csv",), files=None, product=None):
+    d = tmp_path / "std"
+    d.mkdir()
+    names = []
+    for fmt in formats:
+        if fmt in ("csv", "txt"):
+            for run, event in ((0, 0), (1, 0)):
+                idx = [i for i in range(3) if STD_PRE["run"][i] == run]
+                cols = {k: [v[i] for i in idx] for k, v in STD_PRE.items()}
+                write_standardized_table(d, f"PreChemical_run{run}_event{event}", "preChemical", cols, (fmt,))
+                names.append(f"PreChemical_run{run}_event{event}.{fmt}")
+        else:
+            write_standardized_table(d, "PreChemical", "preChemical", STD_PRE, (fmt,))
+            names.append(f"PreChemical.{fmt}")
+    manifest = {
+        "schemaVersion": 1, "outputFormats": {"preChemical": product or list(formats)},
+        "files": files if files is not None else names, "totalEvents": 2,
+    }
+    (d / "Manifest.json").write_text(json.dumps(manifest), encoding="utf-8")
+    return d
+
+
+@pytest.mark.parametrize("formats", [("csv",), ("txt",), ("h5",), ("root",)])
+def test_standardized_prechemical_each_format(tmp_path, formats):
+    if "root" in formats:
+        pytest.importorskip("uproot")
+    frame = Dump(_std_prechem(tmp_path, formats)).prechemical_records()
+    assert tuple(frame.columns[:13]) == tuple(STD_PRE)
+    assert frame["parentTrackId"].tolist() == [1, 2, 3]
+    assert frame["modification"].tolist() == ["0:4", "-1", "0:4"]
+    assert frame["run"].tolist() == [0, 0, 1]
+    assert frame["x_nm"].tolist() == pytest.approx(STD_PRE["x_nm"])
+
+
+def test_standardized_prechemical_prefers_csv_and_listed_missing(tmp_path):
+    d = _std_prechem(tmp_path, ("txt", "csv"))
+    (d / "PreChemical_run0_event0.txt").write_text("garbage", encoding="utf-8")
+    assert len(Dump(d).prechemical_records()) == 3
+    (d / "PreChemical_run1_event0.csv").unlink()
+    with pytest.raises(FileNotFoundError):
+        Dump(d).prechemical_records()
+
+
+def test_standardized_prechemical_allow_missing(tmp_path):
+    d = _std_prechem(tmp_path, ("csv",), files=[])
+    with pytest.raises(FileNotFoundError):
+        Dump(d).prechemical_records()
+    frame = Dump(d).prechemical_records(allow_missing=True)
+    assert frame.empty and tuple(frame.columns[:13]) == tuple(STD_PRE)
+
+
+def test_legacy_prechemical_has_standardized_aliases(tmp_path, make_dump):
+    path = make_dump(tmp_path, "legacy")
+    _event(path)
+    frame = Dump(path).prechemical_records()
+    assert frame["parentTrackId"].tolist() == frame["parent_id"].tolist()
+    assert frame["modification"].tolist() == frame["electron_modification"].tolist()
+    assert frame["level"].isna().all()
+    assert frame["parentX_nm"].tolist() == frame["parent_x_nm"].tolist()

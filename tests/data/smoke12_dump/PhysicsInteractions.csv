@@ -1,0 +1,7 @@
+process,nEvents,countSum,countSumSq,countMean,countStdErr
+e-_G4DNAAttachment,2,16,178,8,5
+e-_G4DNAElastic,2,48466,1174657780,24233,301
+e-_G4DNAElectronSolvation,2,1009,509261,504.5,10.5
+e-_G4DNAExcitation,2,107,5749,53.5,3.5
+e-_G4DNAIonisation,2,1022,522292,511,5
+e-_G4DNAVibExcitation,2,5473,14982169,2736.5,51.5
