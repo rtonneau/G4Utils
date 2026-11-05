@@ -145,6 +145,30 @@
         "ticket": "03-species-and-g",
         "commit": "eca6f5b"
       }
+    },
+    {
+      "at": "2026-11-05T20:49:13.245Z",
+      "event": "ticket_started",
+      "phase": "ship",
+      "files": [
+        "02-plan/tickets/04-reactions-and-catalog.md",
+        "03-implement/04-reactions-and-catalog/commit-log.md"
+      ],
+      "detail": {
+        "ticket": "04-reactions-and-catalog"
+      }
+    },
+    {
+      "at": "2026-11-05T20:50:30.483Z",
+      "event": "ticket_done",
+      "phase": "ship",
+      "files": [
+        "03-implement/04-reactions-and-catalog/commit-log.md"
+      ],
+      "detail": {
+        "ticket": "04-reactions-and-catalog",
+        "commit": "492aa8d"
+      }
     }
   ],
   "current_phase": "ship",
