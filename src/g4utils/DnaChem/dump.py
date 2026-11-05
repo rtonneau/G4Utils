@@ -13,7 +13,7 @@ from g4utils.DnaChem.estimates import (
 )
 from g4utils.DnaChem.manifest import Manifest, _parse_manifest_file, dump_columns
 from g4utils.DnaChem.ntuple import read_ntuple
-from g4utils.DnaChem.prechemical import read_prechemical_records
+from g4utils.DnaChem.prechemical import read_prechemical_records, read_standardized_prechemical
 from g4utils.DnaChem.readers import (
     check_track_lengths, read_meso_species, read_physical_interactions, read_track_lengths,
     validate_track_summary, warn_track_event_count,
@@ -495,10 +495,29 @@ class Dump:
         for this literal prefix. Listed missing files always raise, even when
         absent optional output is allowed with ``allow_missing=True``.
         """
+        if self._layout == "standardized":
+            try:
+                formats = self._product_formats("preChemical")
+            except FileNotFoundError:
+                if not allow_missing:
+                    raise
+                formats = ()
+            frame = read_standardized_prechemical(
+                self.manifest_path, self.prefix, self.manifest.files, formats,
+                allow_missing=allow_missing,
+            )
+            return self._with_columns(frame)
         frame = read_prechemical_records(
             self.manifest_path, self.prefix, self.manifest.files,
             allow_missing=allow_missing,
         )
+        # Standardized names added next to the legacy ones; level was never stored.
+        frame["parentTrackId"] = frame["parent_id"]
+        frame["modification"] = frame["electron_modification"]
+        frame["level"] = math.nan
+        for legacy, name in (("parent_x_nm", "parentX_nm"), ("parent_y_nm", "parentY_nm"),
+                             ("parent_z_nm", "parentZ_nm")):
+            frame[name] = frame[legacy]
         return self._with_columns(frame)
 
     def reaction_table(self) -> pd.DataFrame:
