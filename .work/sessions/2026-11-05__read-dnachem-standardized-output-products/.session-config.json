@@ -121,6 +121,30 @@
         "ticket": "02-table-reader",
         "commit": "2c7086b"
       }
+    },
+    {
+      "at": "2026-11-05T20:45:52.758Z",
+      "event": "ticket_started",
+      "phase": "ship",
+      "files": [
+        "02-plan/tickets/03-species-and-g.md",
+        "03-implement/03-species-and-g/commit-log.md"
+      ],
+      "detail": {
+        "ticket": "03-species-and-g"
+      }
+    },
+    {
+      "at": "2026-11-05T20:49:07.234Z",
+      "event": "ticket_done",
+      "phase": "ship",
+      "files": [
+        "03-implement/03-species-and-g/commit-log.md"
+      ],
+      "detail": {
+        "ticket": "03-species-and-g",
+        "commit": "eca6f5b"
+      }
     }
   ],
   "current_phase": "ship",
