@@ -72,6 +72,8 @@ class Manifest:
     elapsedSinceStart_s: float | None = None
     elapsedSincePreviousDump_s: float | None = None
     geant4Version: str | None = None
+    hdf5: bool | None = None
+    outputFormats: dict[str, tuple[str, ...]] | None = None
     macro: str | None = None
     chemistry: str | None = None
     scavengers: tuple[Scavenger, ...] = ()
@@ -104,6 +106,17 @@ class Manifest:
         _literal_prefix(data.get("prefix"), "manifest")
         if "mesoEnabled" in data and not isinstance(data["mesoEnabled"], bool):
             raise ValueError("mesoEnabled must be a boolean when present")
+        if "hdf5" in data and data["hdf5"] is not None and not isinstance(data["hdf5"], bool):
+            raise ValueError("hdf5 must be a boolean when present")
+        formats = data.get("outputFormats")
+        if formats is not None and (
+            not isinstance(formats, dict)
+            or any(
+                not isinstance(v, (list, tuple)) or any(not isinstance(f, str) for f in v)
+                for v in formats.values()
+            )
+        ):
+            raise ValueError("outputFormats must map each product to an array of strings")
         for key in ("runs", "scavengers", "files"):
             value = data.get(key)
             item_type = str if key == "files" else dict
@@ -118,6 +131,8 @@ class Manifest:
         )
         known["runs"] = tuple(ManifestRun.from_dict(r) for r in data.get("runs") or [])
         known["files"] = _tuple_or_none(known.get("files"))
+        if formats is not None:
+            known["outputFormats"] = {k: tuple(v) for k, v in formats.items()}
         return cls(**known, raw=unknown)
 
     def runs_table(self) -> pd.DataFrame:
@@ -161,6 +176,12 @@ def _fmt(value) -> str:
     return str(value)
 
 
+def _fmt_formats(formats):
+    if formats is None:
+        return None
+    return "; ".join(f"{k}: {', '.join(v) or 'none'}" for k, v in formats.items())
+
+
 def _present(pairs) -> list[tuple[str, str]]:
     return [(k, _fmt(v)) for k, v in pairs if v is not None]
 
@@ -177,6 +198,8 @@ def _summary(m: Manifest) -> dict:
             ("elapsedSinceStart_s", m.elapsedSinceStart_s),
             ("elapsedSincePreviousDump_s", m.elapsedSincePreviousDump_s),
             ("geant4Version", m.geant4Version),
+            ("hdf5", m.hdf5),
+            ("outputFormats", _fmt_formats(m.outputFormats)),
             ("macro", m.macro),
             ("runMode", m.runMode),
             ("threads", m.threads),

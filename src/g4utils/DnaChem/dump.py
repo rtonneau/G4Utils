@@ -144,6 +144,26 @@ class Dump:
         """Filename prefix of the Dump's data files (empty if absent or null)."""
         return self.manifest.prefix or ""
 
+    @property
+    def output_formats(self) -> dict[str, tuple[str, ...]]:
+        """Manifest ``outputFormats`` per product (empty for a legacy dump)."""
+        return dict(self.manifest.outputFormats or {})
+
+    @property
+    def _layout(self) -> str:
+        """``"standardized"`` iff the manifest lists ``outputFormats``."""
+        return "standardized" if self.manifest.outputFormats is not None else "legacy"
+
+    def _product_formats(self, product: str) -> tuple[str, ...]:
+        """Formats written for ``product``; raise when it was disabled."""
+        formats = (self.manifest.outputFormats or {}).get(product)
+        if formats is not None and not formats:
+            raise FileNotFoundError(
+                f"Product {product!r} was not written: outputFormats lists no "
+                f"format for it in {self.manifest_path}"
+            )
+        return formats or ()
+
     def _data_file(self, filename: str) -> Path:
         """Resolve a listed file first, then the conventional prefixed filename.
 

@@ -43,6 +43,8 @@ _EXTRA_COLUMNS = (
     "mesoTimesPerDecade",
     "mesoSpatialOutput",
     "threads",
+    "hdf5",
+    "outputFormats",
 )
 
 
