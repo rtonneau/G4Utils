@@ -97,6 +97,30 @@
         "ticket": "01-manifest-and-layout",
         "commit": "f683fb9"
       }
+    },
+    {
+      "at": "2026-11-05T20:43:38.585Z",
+      "event": "ticket_started",
+      "phase": "ship",
+      "files": [
+        "02-plan/tickets/02-table-reader.md",
+        "03-implement/02-table-reader/commit-log.md"
+      ],
+      "detail": {
+        "ticket": "02-table-reader"
+      }
+    },
+    {
+      "at": "2026-11-05T20:45:48.822Z",
+      "event": "ticket_done",
+      "phase": "ship",
+      "files": [
+        "03-implement/02-table-reader/commit-log.md"
+      ],
+      "detail": {
+        "ticket": "02-table-reader",
+        "commit": "2c7086b"
+      }
     }
   ],
   "current_phase": "ship",
