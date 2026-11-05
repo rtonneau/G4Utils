@@ -13,16 +13,25 @@ import pandas as pd
 
 PHYSICAL_COLUMNS = ("label", "count")
 MESO_SPECIES_COLUMNS = ("time_ns", "species", "count")
+# Column names of the standardized TrackLengths table; legacy files used the
+# older names listed in LEGACY_TRACK_COLUMNS and are renamed on read.
 TRACK_COLUMNS = (
+    "run", "event", "primaryLength_nm", "primaryEkinStart_keV",
+    "primaryEkinEnd_keV", "primaryEnd", "secondaryFirstGenLength_nm",
+    "nSecondaryFirstGen", "secondaryAllLength_nm", "nSecondaryAll",
+)
+LEGACY_TRACK_COLUMNS = (
     "run", "event", "primaryLength_nm", "primaryEkin0_keV",
     "primaryEkinEnd_keV", "primaryEnd", "secondaryFirstGen_nm",
     "nSecondaryFirstGen", "secondaryAll_nm", "nSecondaryAll",
 )
 TRACK_INTEGER_COLUMNS = ("run", "event", "nSecondaryFirstGen", "nSecondaryAll")
 TRACK_FLOAT_COLUMNS = (
-    "primaryLength_nm", "primaryEkin0_keV", "primaryEkinEnd_keV",
-    "secondaryFirstGen_nm", "secondaryAll_nm",
+    "primaryLength_nm", "primaryEkinStart_keV", "primaryEkinEnd_keV",
+    "secondaryFirstGenLength_nm", "secondaryAllLength_nm",
 )
+# Manifest ``trackLengths`` summaries may still use the legacy names.
+_LEGACY_SUMMARY_KEYS = dict(zip(TRACK_COLUMNS, LEGACY_TRACK_COLUMNS))
 TRACK_ENDS = ("stopped", "escaped", "killed")
 _INTEGER = re.compile(r"[+]?[0-9]+\Z")
 
@@ -98,7 +107,7 @@ def read_track_lengths(file: Path) -> pd.DataFrame:
     """Read one event per row, retaining the writer's nm and keV units."""
     records = []
     seen: set[tuple[int, int]] = set()
-    for line, values in _rows(file, TRACK_COLUMNS):
+    for line, values in _rows(file, LEGACY_TRACK_COLUMNS):
         row = dict(zip(TRACK_COLUMNS, values))
         for column in TRACK_INTEGER_COLUMNS:
             row[column] = _integer(row[column], file, line, column)
@@ -117,6 +126,21 @@ def read_track_lengths(file: Path) -> pd.DataFrame:
     for column in TRACK_FLOAT_COLUMNS:
         frame[column] = frame[column].astype("float64")
     frame["primaryEnd"] = frame["primaryEnd"].astype("string")
+    return frame
+
+
+def check_track_lengths(frame: pd.DataFrame, source: Path) -> pd.DataFrame:
+    """Light schema check for a standardized TrackLengths table."""
+    missing = [c for c in TRACK_COLUMNS if c not in frame.columns]
+    if missing:
+        raise ValueError(f"{source}: TrackLengths lacks columns {missing}")
+    bad = sorted(set(frame["primaryEnd"].astype(object)) - set(TRACK_ENDS))
+    if bad:
+        raise ValueError(f"{source}: unknown primaryEnd {bad[0]!r}")
+    duplicated = frame.duplicated(["run", "event"])
+    if duplicated.any():
+        key = tuple(int(v) for v in frame.loc[duplicated, ["run", "event"]].iloc[0])
+        raise ValueError(f"{source}: duplicate (run,event) {key}")
     return frame
 
 
@@ -154,11 +178,12 @@ def validate_track_summary(frame: pd.DataFrame, summary: object, file: Path) -> 
         if key in summary and _summary_integer(summary[key], file, key) != expected:
             raise ValueError(f"{file}: trackLengths.{key} disagrees with CSV ({expected})")
     for column in (*TRACK_FLOAT_COLUMNS, "nSecondaryFirstGen", "nSecondaryAll"):
-        if column not in summary:
+        key_name = column if column in summary else _LEGACY_SUMMARY_KEYS.get(column, column)
+        if key_name not in summary:
             continue
-        stat = summary[column]
+        stat = summary[key_name]
         if not isinstance(stat, dict):
-            raise ValueError(f"{file}: trackLengths.{column} must be an object")
+            raise ValueError(f"{file}: trackLengths.{key_name} must be an object")
         values = frame[column].astype("float64")
         mean = float(values.mean()) if size else None
         sem = float(values.std(ddof=1) / math.sqrt(size)) if size > 1 else (0.0 if size else None)

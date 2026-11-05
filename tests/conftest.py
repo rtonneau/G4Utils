@@ -396,6 +396,26 @@ STD_CATALOG = {
     "reactionId": [1, 25],
     "reaction": ["H3O^1 + OH^-1 -> (no products)", "°OH^0 + °OH^0 -> H2O2^0"],
 }
+STD_PHYSICS = {
+    "process": ["e-_G4DNAElastic", "e-_G4DNAExcitation"],
+    "nEvents": [2, 2],
+    "countSum": [48466, 107],
+    "countSumSq": [1174657780.0, 5749.0],
+    "countMean": [24233.0, 53.5],
+    "countStdErr": [301.0, 3.5],
+}
+STD_TRACKS = {
+    "run": [0, 0],
+    "event": [0, 1],
+    "primaryLength_nm": [2426.914921, 1838.489023],
+    "primaryEkinStart_keV": [10.0, 10.0],
+    "primaryEkinEnd_keV": [2.5e-05, 2.5e-05],
+    "primaryEnd": ["stopped", "stopped"],
+    "secondaryFirstGenLength_nm": [3810.748451, 2664.104031],
+    "nSecondaryFirstGen": [214, 148],
+    "secondaryAllLength_nm": [6164.274912, 6623.137102],
+    "nSecondaryAll": [506, 517],
+}
 STD_SPECIES_ROWS = [(0.001, "°OH^0", 10, 0.5), (0.001, "e_aq^-1", 8, 0.4), (5.0, "°OH^0", 6, 0.3)]
 STD_MESO_ROWS = [(5.0, "H2O2^0", 4, 0.2), (10.0, "°OH^0", 0, 0.0)]
 
@@ -412,6 +432,8 @@ def make_standardized_dump():
             "species": listing,
             "speciesMeso": listing,
             "reactions": listing,
+            "physicsInteractions": listing,
+            "trackLengths": listing,
         }
         manifest = {
             "schemaVersion": 1,
@@ -442,8 +464,17 @@ def make_standardized_dump():
             d, "ReactionsCatalog", "reactionCatalog", STD_CATALOG, formats,
             container="Reactions",
         )
+        write_standardized_table(
+            d, "PhysicsInteractions", "physicsInteractions", STD_PHYSICS, formats
+        )
+        write_standardized_table(
+            d, "TrackLengths", "trackLengths", STD_TRACKS, formats
+        )
         files = []
-        for stem in ("Species", "SpeciesMeso", "Reactions", "ReactionsCatalog"):
+        for stem in (
+            "Species", "SpeciesMeso", "Reactions", "ReactionsCatalog",
+            "PhysicsInteractions", "TrackLengths",
+        ):
             for fmt in formats:
                 if fmt in ("h5", "root") and stem == "ReactionsCatalog":
                     continue

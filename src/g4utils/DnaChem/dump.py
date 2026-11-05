@@ -15,8 +15,8 @@ from g4utils.DnaChem.manifest import Manifest, _parse_manifest_file, dump_column
 from g4utils.DnaChem.ntuple import read_ntuple
 from g4utils.DnaChem.prechemical import read_prechemical_records
 from g4utils.DnaChem.readers import (
-    read_meso_species, read_physical_interactions, read_track_lengths, validate_track_summary,
-    warn_track_event_count,
+    check_track_lengths, read_meso_species, read_physical_interactions, read_track_lengths,
+    validate_track_summary, warn_track_event_count,
 )
 from g4utils.DnaChem.species_names import short_name
 from g4utils.DnaChem.tables import pick_format, read_table_file
@@ -437,6 +437,15 @@ class Dump:
         ``count`` is dimensionless. ``count_per_event`` divides by the
         manifest's finite positive ``totalEvents`` only when requested.
         """
+        if self._layout == "standardized":
+            frame = self._read_standardized(
+                "PhysicsInteractions", "physicsInteractions", "physicsInteractions"
+            )
+            frame["count"] = frame["countSum"].astype("int64")
+            frame = self._with_columns(frame)
+            if per_event:
+                frame["count_per_event"] = frame["countMean"].astype("float64")
+            return frame
         file = _require(self._data_file(PHYSICAL_INTERACTIONS_FILE))
         if per_event:
             total = self.manifest.totalEvents
@@ -446,15 +455,35 @@ class Dump:
                     f"{self.manifest_path}: totalEvents must be finite and positive "
                     "for count_per_event"
                 )
-        frame = self._with_columns(read_physical_interactions(file))
+        frame = read_physical_interactions(file)
+        events = self._valid_total_events()
+        frame["process"] = frame["label"]
+        frame["nEvents"] = int(events) if math.isfinite(events) else math.nan
+        frame["countSum"] = frame["count"].astype("float64")
+        frame["countMean"] = frame["countSum"] / events
+        for column in _STAT_COLUMNS[:2]:
+            frame[column] = math.nan
+        frame = self._with_columns(frame)
         if per_event:
             frame["count_per_event"] = (frame["count"] / total).astype("float64")
         return frame
 
+    def _valid_total_events(self) -> float:
+        """Manifest ``totalEvents`` when finite and positive, else NaN."""
+        total = self.manifest.totalEvents
+        if (not isinstance(total, bool) and isinstance(total, (int, float))
+                and math.isfinite(total) and total > 0):
+            return float(total)
+        return math.nan
+
     def track_lengths(self) -> pd.DataFrame:
         """One non-aborted event per row; lengths in nm, energies in keV."""
-        file = _require(self._data_file(TRACK_LENGTHS_FILE))
-        frame = read_track_lengths(file)
+        if self._layout == "standardized":
+            fmt, file = self._table_location("TrackLengths", "trackLengths")
+            frame = check_track_lengths(read_table_file(file, fmt, "trackLengths"), file)
+        else:
+            file = _require(self._data_file(TRACK_LENGTHS_FILE))
+            frame = read_track_lengths(file)
         validate_track_summary(frame, self.manifest.raw.get("trackLengths"), file)
         warn_track_event_count(frame, self.manifest.totalEvents, file)
         return self._with_columns(frame)
