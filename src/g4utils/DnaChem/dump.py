@@ -173,7 +173,7 @@ class Dump:
             )
         return formats
 
-    def _table_location(self, stem: str, product: str):
+    def _table_location(self, stem: str, product: str, container: str | None = None):
         """Format and path of the preferred file of a standardized product."""
         formats = self._product_formats(product)
         listed = [f.replace("\\", "/") for f in self.files]
@@ -184,10 +184,15 @@ class Dump:
                 directory = self._listed_file(Path(entry).parent.as_posix())
                 break
         inventory = [Path(f).name for f in listed] if listed else None
-        return pick_format(directory, prefixed, formats, inventory)
+        return pick_format(
+            directory, prefixed, formats, inventory,
+            container=f"{self.prefix}{container}" if container else None,
+        )
 
-    def _read_standardized(self, stem: str, product: str, table: str):
-        fmt, path = self._table_location(stem, product)
+    def _read_standardized(
+        self, stem: str, product: str, table: str, container: str | None = None
+    ):
+        fmt, path = self._table_location(stem, product, container)
         return read_table_file(path, fmt, table)
 
     def _standardized_available(self, stem: str, product: str) -> bool:
@@ -391,12 +396,38 @@ class Dump:
         return self._map_legacy_species(frame)
 
     def reactions(self) -> pd.DataFrame:
-        """Reaction counts with labels."""
+        """Reaction counts with labels.
+
+        New dumps give one row per reaction and time bin (``binStart_ns``,
+        ``binEnd_ns`` and the per-event count statistics). Legacy dumps are
+        mapped onto the same columns, with the single record time as
+        ``binEnd_ns`` and statistics the old file lacked as NaN. ``time_s``
+        is the bin end (the record time for legacy dumps) in seconds and
+        ``count`` the total firings (``countSum``).
+        """
         if self._reactions is None:
-            df = read_ntuple(_require(self._data_file(REACTIONS_FILE)))
-            meta = self._read_metadata()
-            df = df.merge(meta, on="reactionId", how="left")
-            df["time_s"] = df.pop("time") * 1e-9
+            if self._layout == "standardized":
+                df = self._read_standardized("Reactions", "reactions", "reactions")
+                df = df.merge(self._read_metadata(), on="reactionId", how="left")
+                df["count"] = df["countSum"].astype("int64")
+                df["time_s"] = df["binEnd_ns"] * 1e-9
+            else:
+                df = read_ntuple(_require(self._data_file(REACTIONS_FILE)))
+                meta = self._read_metadata()
+                df = df.merge(meta, on="reactionId", how="left")
+                df["binStart_ns"] = math.nan
+                df["binEnd_ns"] = df["time"].astype("float64")
+                df["time_s"] = df.pop("time") * 1e-9
+                total = self.manifest.totalEvents
+                valid = (
+                    not isinstance(total, bool) and isinstance(total, (int, float))
+                    and math.isfinite(total) and total > 0
+                )
+                df["nEvents"] = int(total) if valid else math.nan
+                df["countSum"] = df["count"].astype("float64")
+                df["countMean"] = df["countSum"] / total if valid else math.nan
+                df["countSumSq"] = math.nan
+                df["countStdErr"] = math.nan
             self._reactions = self._with_columns(df)
         return self._reactions
 
@@ -466,6 +497,10 @@ class Dump:
         return self._meso
 
     def _read_metadata(self) -> pd.DataFrame:
+        if self._layout == "standardized":
+            return self._read_standardized(
+                "ReactionsCatalog", "reactions", "reactionCatalog", container="Reactions"
+            )
         return read_reactions_metadata(_require(self._data_file(REACTIONS_METADATA_FILE)))
 
     def __repr__(self) -> str:

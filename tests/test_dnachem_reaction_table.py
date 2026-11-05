@@ -91,3 +91,18 @@ def test_malformed_line_raises(tmp_path):
 def test_short_names_o_minus():
     assert short_name("O^-1") == "O-"
     assert short_name("O_3^-1") == "O3-"
+
+
+def test_standardized_dump_folder_and_catalogue_file(tmp_path, make_standardized_dump):
+    d = make_standardized_dump(tmp_path, "new")
+    from_folder = load_reaction_table(d)
+    from_manifest = load_reaction_table(d / "Manifest.json")
+    from_catalogue = load_reaction_table(d / "ReactionsCatalog.csv")
+    assert from_folder["reactionId"].tolist() == [1, 25]
+    assert_frame_equal(from_folder, from_manifest)
+    assert_frame_equal(from_folder, from_catalogue)
+
+
+def test_standardized_catalogue_only_in_h5(tmp_path, make_standardized_dump):
+    d = make_standardized_dump(tmp_path, "new", formats=("h5",))
+    assert load_reaction_table(d)["equation"].tolist()[1] == "OH + OH -> H2O2"

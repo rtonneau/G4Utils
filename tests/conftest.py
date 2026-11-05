@@ -382,6 +382,20 @@ def _std_species_table(rows):
     }
 
 
+STD_REACTIONS = {
+    "reactionId": [1, 25, 25],
+    "binStart_ns": [0.0, 0.0, 0.001],
+    "binEnd_ns": [0.001, 0.001, 0.01],
+    "nEvents": [2, 2, 2],
+    "countSum": [646, 4436, 9000],
+    "countSumSq": [417316.0, 19678096.0, 81000000.0],
+    "countMean": [323.0, 2218.0, 4500.0],
+    "countStdErr": [1.0, 2.0, 3.0],
+}
+STD_CATALOG = {
+    "reactionId": [1, 25],
+    "reaction": ["H3O^1 + OH^-1 -> (no products)", "°OH^0 + °OH^0 -> H2O2^0"],
+}
 STD_SPECIES_ROWS = [(0.001, "°OH^0", 10, 0.5), (0.001, "e_aq^-1", 8, 0.4), (5.0, "°OH^0", 6, 0.3)]
 STD_MESO_ROWS = [(5.0, "H2O2^0", 4, 0.2), (10.0, "°OH^0", 0, 0.0)]
 
@@ -397,6 +411,7 @@ def make_standardized_dump():
         products = {
             "species": listing,
             "speciesMeso": listing,
+            "reactions": listing,
         }
         manifest = {
             "schemaVersion": 1,
@@ -420,9 +435,19 @@ def make_standardized_dump():
         write_standardized_table(
             d, "SpeciesMeso", "speciesMeso", _std_species_table(STD_MESO_ROWS), formats
         )
+        write_standardized_table(
+            d, "Reactions", "reactions", STD_REACTIONS, formats
+        )
+        write_standardized_table(
+            d, "ReactionsCatalog", "reactionCatalog", STD_CATALOG, formats,
+            container="Reactions",
+        )
         files = []
-        for stem in ("Species", "SpeciesMeso"):
-            files += [f"{stem}.{fmt}" for fmt in formats]
+        for stem in ("Species", "SpeciesMeso", "Reactions", "ReactionsCatalog"):
+            for fmt in formats:
+                if fmt in ("h5", "root") and stem == "ReactionsCatalog":
+                    continue
+                files.append(f"{stem}.{fmt}")
         manifest.setdefault("files", files)
         (d / "Manifest.json").write_text(json.dumps(manifest, indent=2), encoding="utf-8")
         return d
