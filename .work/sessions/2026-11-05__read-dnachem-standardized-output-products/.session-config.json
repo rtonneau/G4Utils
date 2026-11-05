@@ -217,9 +217,33 @@
         "ticket": "06-prechemical-new-layout",
         "commit": "f5f587f"
       }
+    },
+    {
+      "at": "2026-11-05T20:55:21.004Z",
+      "event": "ticket_started",
+      "phase": "ship",
+      "files": [
+        "02-plan/tickets/07-packaging-docs-regression.md",
+        "03-implement/07-packaging-docs-regression/commit-log.md"
+      ],
+      "detail": {
+        "ticket": "07-packaging-docs-regression"
+      }
+    },
+    {
+      "at": "2026-11-05T20:58:54.458Z",
+      "event": "ticket_done",
+      "phase": "finish-pending",
+      "files": [
+        "03-implement/07-packaging-docs-regression/commit-log.md"
+      ],
+      "detail": {
+        "ticket": "07-packaging-docs-regression",
+        "commit": "d54bc75"
+      }
     }
   ],
-  "current_phase": "ship",
+  "current_phase": "finish-pending",
   "git": {
     "branch": "feat/read-standardized-output-products",
     "base_branch": "main",
